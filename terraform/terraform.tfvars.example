@@ -1,0 +1,13 @@
+# Copy to terraform.tfvars and fill in your values
+# NEVER commit terraform.tfvars — it's in .gitignore
+
+aws_region   = "ap-southeast-2"
+project      = "waterapps"
+environment  = "prod"
+source_email = "hello@waterapps.com.au"
+target_email = "hello@waterapps.com.au"
+
+allowed_origins = [
+  "https://www.waterapps.com.au",
+  "https://waterapps.com.au"
+]
