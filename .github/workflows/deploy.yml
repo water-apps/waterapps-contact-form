@@ -6,6 +6,7 @@ on:
     paths:
       - 'terraform/**'
       - 'lambda/**'
+      - '**'
   pull_request:
     branches: [main]
     paths:
