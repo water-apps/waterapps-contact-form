@@ -10,7 +10,6 @@ terraform/lambda.zip
 
 # Lambda build artifacts
 lambda/node_modules/
-lambda/package-lock.json
 
 # OS
 .DS_Store
