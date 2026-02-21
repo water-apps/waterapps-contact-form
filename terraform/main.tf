@@ -120,7 +120,7 @@ resource "aws_lambda_function" "contact" {
   filename         = data.archive_file.lambda.output_path
   source_code_hash = data.archive_file.lambda.output_base64sha256
   handler          = "index.handler"
-  runtime          = "nodejs18.x"
+  runtime          = "nodejs22.x"
   timeout          = 10
   memory_size      = 128 # Minimal — contact form doesn't need more
 

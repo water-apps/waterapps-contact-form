@@ -71,17 +71,18 @@ export const handler = async (event) => {
     }
 
     const name = sanitise(body.name.trim());
-    const email = sanitise(body.email.trim().toLowerCase());
+    const email = body.email.trim().toLowerCase();
     const company = sanitise((body.company || "Not provided").trim());
     const phone = sanitise((body.phone || "Not provided").trim());
     const message = sanitise(body.message.trim());
+    const emailDisplay = sanitise(email);
     const timestamp = new Date().toISOString();
 
     const emailBody = `
 New enquiry from waterapps.com.au
 
 Name:     ${name}
-Email:    ${email}
+Email:    ${emailDisplay}
 Company:  ${company}
 Phone:    ${phone}
 Time:     ${timestamp}
@@ -115,7 +116,7 @@ Reply directly to this email to respond to ${name}.
       JSON.stringify({
         event: "contact_form_submission",
         name,
-        email,
+        email: emailDisplay,
         company,
         timestamp,
       })

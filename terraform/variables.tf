@@ -53,10 +53,11 @@ variable "common_tags" {
   description = "Tags applied to all resources"
   type        = map(string)
   default = {
-    Project    = "WaterApps"
-    Component  = "ContactForm"
-    ManagedBy  = "terraform"
-    Owner      = "waterapps"
-    CostCenter = "Marketing"
+    Project     = "WaterApps"
+    Component   = "ContactForm"
+    Environment = "prod"
+    ManagedBy   = "terraform"
+    Owner       = "waterapps"
+    CostCenter  = "Marketing"
   }
 }
