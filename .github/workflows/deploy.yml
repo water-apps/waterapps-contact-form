@@ -46,6 +46,14 @@ jobs:
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
+      - name: Guard Apply on Main Only
+        if: github.event.inputs.action == 'apply'
+        run: |
+          if [ "${GITHUB_REF}" != "refs/heads/main" ]; then
+            echo "::error::Terraform apply is allowed only from main. Current ref: ${GITHUB_REF}"
+            exit 1
+          fi
+
       - name: Install Lambda dependencies
         working-directory: lambda
         run: npm ci
