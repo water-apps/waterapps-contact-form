@@ -1,0 +1,8 @@
+# Default owner for this repo
+* @vkaushik13
+
+# Sensitive deploy/runtime paths
+.github/workflows/** @vkaushik13
+terraform/** @vkaushik13
+lambda/** @vkaushik13
+
