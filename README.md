@@ -80,7 +80,13 @@ terraform output api_endpoint
 
 ### 6. Update your website
 
-Add the API endpoint to your contact form's `fetch()` call:
+Add the API endpoint to your contact form's `fetch()` call.
+Recommended frontend behavior:
+- Include a hidden honeypot field `website` (leave blank)
+- Include a timestamp field `submittedAt` when the form is rendered/submitted
+- Surface `fieldErrors` from API responses
+
+Example:
 
 ```javascript
 const response = await fetch("YOUR_API_ENDPOINT_HERE", {
@@ -91,12 +97,15 @@ const response = await fetch("YOUR_API_ENDPOINT_HERE", {
     email: "jane@example.com",
     company: "Acme Corp",        // optional
     phone: "+61 400 000 000",    // optional
+    website: "",                 // hidden honeypot field (must stay blank)
+    submittedAt: new Date().toISOString(),
     message: "I'd like to discuss a DevOps engagement..."
   })
 });
 
 const data = await response.json();
 // data.status === "success" || "error"
+// data.fieldErrors may be returned on validation failure
 ```
 
 ### 7. Test it
@@ -106,6 +115,9 @@ const data = await response.json();
 curl -X POST https://YOUR-API-ID.execute-api.ap-southeast-2.amazonaws.com/contact \
   -H "Content-Type: application/json" \
   -d '{"name":"Test","email":"test@example.com","message":"Testing the contact form from terminal"}'
+
+# Health/smoke endpoint (frontend and pipeline friendly)
+curl https://YOUR-API-ID.execute-api.ap-southeast-2.amazonaws.com/health
 ```
 
 ## Project Structure
@@ -133,12 +145,14 @@ waterapps-contact-form/
 
 ## Security
 
-- **CORS**: Locked to `waterapps.com.au` — other origins are rejected
+- **CORS**: Configurable allowlist in Terraform and enforced in Lambda response handling
 - **IAM**: Lambda role has only `ses:SendEmail` (scoped to verified identity) and CloudWatch logging
 - **No `Resource: "*"`**: Every IAM permission is scoped to specific ARNs
 - **Input validation**: Name, email, message validated server-side
+- **Field limits**: Request size and input lengths constrained to reduce abuse
 - **HTML sanitisation**: All input escaped before use
-- **Anti-spam**: Rejects messages with excessive URLs
+- **Anti-spam**: Honeypot (`website`), fill-time check (`submittedAt`), URL limit, spam-pattern checks
+- **Rate limiting**: API Gateway throttling enabled at stage level (low-cost protection)
 - **No secrets in code**: Emails passed via environment variables, AWS auth via OIDC
 
 ## SES Sandbox Note
@@ -159,6 +173,9 @@ The GitHub Actions workflow uses OIDC federation — no long-lived AWS keys stor
 ```bash
 # Watch Lambda logs
 aws logs tail /aws/lambda/waterapps-prod-contact --follow
+
+# Check health endpoint
+curl "$(terraform output -raw health_endpoint)"
 
 # Check recent invocations
 aws lambda get-function --function-name waterapps-prod-contact --query 'Configuration.LastModified'

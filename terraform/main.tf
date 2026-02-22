@@ -128,8 +128,12 @@ resource "aws_lambda_function" "contact" {
 
   environment {
     variables = {
-      SOURCE_EMAIL = var.source_email
-      TARGET_EMAIL = var.target_email
+      SOURCE_EMAIL       = var.source_email
+      TARGET_EMAIL       = var.target_email
+      ALLOWED_ORIGINS    = join(",", var.allowed_origins)
+      MAX_BODY_BYTES     = tostring(var.max_body_bytes)
+      MIN_SUBMIT_SECONDS = tostring(var.min_submit_seconds)
+      LOG_LEVEL          = var.log_level
     }
   }
 }
@@ -152,8 +156,8 @@ resource "aws_apigatewayv2_api" "contact" {
 
   cors_configuration {
     allow_origins = var.allowed_origins
-    allow_methods = ["POST", "OPTIONS"]
-    allow_headers = ["Content-Type"]
+    allow_methods = ["GET", "POST", "OPTIONS"]
+    allow_headers = ["Content-Type", "X-Requested-With"]
     max_age       = 86400 # 24 hours — browser caches preflight
   }
 }
@@ -162,6 +166,12 @@ resource "aws_apigatewayv2_stage" "default" {
   api_id      = aws_apigatewayv2_api.contact.id
   name        = "$default"
   auto_deploy = true
+
+  default_route_settings {
+    throttling_burst_limit   = var.api_throttle_burst_limit
+    throttling_rate_limit    = var.api_throttle_rate_limit
+    detailed_metrics_enabled = true
+  }
 
   access_log_settings {
     destination_arn = aws_cloudwatch_log_group.api_gateway.arn
@@ -193,6 +203,12 @@ resource "aws_apigatewayv2_integration" "lambda" {
 resource "aws_apigatewayv2_route" "post_contact" {
   api_id    = aws_apigatewayv2_api.contact.id
   route_key = "POST /contact"
+  target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+}
+
+resource "aws_apigatewayv2_route" "get_health" {
+  api_id    = aws_apigatewayv2_api.contact.id
+  route_key = "GET /health"
   target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
 }
 

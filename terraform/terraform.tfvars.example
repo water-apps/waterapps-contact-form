@@ -10,4 +10,15 @@ target_email = "hello@waterapps.com.au"
 allowed_origins = [
   "https://www.waterapps.com.au",
   "https://waterapps.com.au"
+  # "http://localhost:5173", # local dev
+  # "http://localhost:3000"  # local dev
 ]
+
+# Anti-spam / request handling
+max_body_bytes     = 16384
+min_submit_seconds = 3
+log_level          = "info"
+
+# Low-cost API throttling (requests/sec)
+api_throttle_burst_limit = 20
+api_throttle_rate_limit  = 5
