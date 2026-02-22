@@ -1,0 +1,7 @@
+# Protect deployment workflows and infrastructure/app code.
+
+.github/workflows/** @vkaushik13
+terraform/** @vkaushik13
+lambda/** @vkaushik13
+scripts/** @vkaushik13
+README.md @vkaushik13
