@@ -157,7 +157,14 @@ New AWS accounts start in SES sandbox mode. This means you can only send to veri
 
 ## CI/CD Setup (Optional)
 
-The GitHub Actions workflow uses OIDC federation — no long-lived AWS keys stored in GitHub. To enable:
+The GitHub Actions workflow uses OIDC federation — no long-lived AWS keys stored in GitHub.
+
+Current flow:
+- Push / PR: validate + security checks
+- PR (optional): Terraform plan when remote-state and OIDC prerequisites are configured
+- `main` push: deploy only when auto deploy is explicitly enabled
+
+To enable:
 
 1. Create an IAM OIDC identity provider for GitHub in your AWS account
 2. Create a deploy role with permissions for Lambda, API GW, SES, IAM, CloudWatch
@@ -171,6 +178,10 @@ The GitHub Actions workflow uses OIDC federation — no long-lived AWS keys stor
 6. Push to `main` — the workflow handles the rest
 
 Without remote state, CI runners use ephemeral local state and can collide with existing AWS resources.
+
+For GitOps-style approvals, configure:
+- Branch protection on `main` (require PR + status checks)
+- GitHub `production` environment required reviewers (for deploy approval)
 
 ## Monitoring
 
