@@ -12,6 +12,15 @@ on:
       - 'terraform/**'
       - 'lambda/**'
   workflow_dispatch:
+    inputs:
+      action:
+        description: "Terraform action to run"
+        required: true
+        default: "plan"
+        type: choice
+        options:
+          - plan
+          - apply
 
 permissions:
   id-token: write  # OIDC federation with AWS
@@ -202,6 +211,81 @@ jobs:
           echo '```' >> $GITHUB_STEP_SUMMARY
           terraform output -raw api_endpoint >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
+
+  manual-plan-apply:
+    name: "Terraform ${{ github.event.inputs.action || 'plan' }} (Manual)"
+    needs: validate
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Install Lambda dependencies
+        working-directory: lambda
+        run: npm ci
+
+      - name: Require Remote State Configuration
+        run: |
+          missing=0
+          if [ -z "${CONTACT_FORM_TF_STATE_BUCKET}" ]; then
+            echo "::error::Repo variable CONTACT_FORM_TF_STATE_BUCKET is required for remote state"
+            missing=1
+          fi
+          if [ -z "${CONTACT_FORM_TF_LOCK_TABLE}" ]; then
+            echo "::error::Repo variable CONTACT_FORM_TF_LOCK_TABLE is required for DynamoDB locking"
+            missing=1
+          fi
+          if [ "$missing" -ne 0 ]; then
+            echo "## Remote State Required" >> "$GITHUB_STEP_SUMMARY"
+            echo "- Set CONTACT_FORM_TF_STATE_BUCKET and CONTACT_FORM_TF_LOCK_TABLE repo vars before running manual plan/apply." >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+      - name: Configure AWS Credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Terraform Init
+        working-directory: terraform
+        run: |
+          terraform init \
+            -backend-config="bucket=${CONTACT_FORM_TF_STATE_BUCKET}" \
+            -backend-config="key=${CONTACT_FORM_TF_STATE_KEY}" \
+            -backend-config="region=${AWS_REGION}" \
+            -backend-config="dynamodb_table=${CONTACT_FORM_TF_LOCK_TABLE}" \
+            -backend-config="encrypt=true"
+
+      - name: Terraform Plan
+        working-directory: terraform
+        run: terraform plan -out=tfplan
+
+      - name: Terraform Apply
+        if: github.event.inputs.action == 'apply'
+        working-directory: terraform
+        run: terraform apply -auto-approve tfplan
+
+      - name: Summary
+        working-directory: terraform
+        run: |
+          {
+            echo "## Contact Form Manual Terraform Run"
+            echo "- Action: ${{ github.event.inputs.action }}"
+            echo "- Environment approval gate: production"
+            echo "- Remote state: ${CONTACT_FORM_TF_STATE_BUCKET}/${CONTACT_FORM_TF_STATE_KEY}"
+            if [ "${{ github.event.inputs.action }}" = "apply" ]; then
+              echo "- API Endpoint:"
+              echo '```'
+              terraform output -raw api_endpoint
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
 
   deploy-skipped:
     name: "Deploy Skipped (Auto Deploy Disabled)"

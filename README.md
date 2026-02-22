@@ -163,6 +163,7 @@ Current flow:
 - Push / PR: validate + security checks
 - PR (optional): Terraform plan when remote-state and OIDC prerequisites are configured
 - `main` push: deploy only when auto deploy is explicitly enabled
+- Manual `workflow_dispatch`: Terraform plan/apply with `production` environment approval
 
 To enable:
 
@@ -182,6 +183,15 @@ Without remote state, CI runners use ephemeral local state and can collide with 
 For GitOps-style approvals, configure:
 - Branch protection on `main` (require PR + status checks)
 - GitHub `production` environment required reviewers (for deploy approval)
+
+### Manual Operator Run (Restored Apply Stage)
+
+Use the workflow `Contact Form — Deploy` with `workflow_dispatch` input:
+
+- `action=plan` for a safe manual plan run
+- `action=apply` for a manual apply (gated by `production` environment approval)
+
+This is the recommended operator path when auto deploy is disabled.
 
 ## Monitoring
 
