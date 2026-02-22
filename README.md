@@ -82,6 +82,8 @@ terraform output api_endpoint
 
 Add the API endpoint to your contact form's `fetch()` call.
 Recommended frontend behavior:
+- Include a hidden honeypot field `website` (leave blank)
+- Include a timestamp field `submittedAt` when the form is rendered/submitted
 - Surface `fieldErrors` from API responses
 
 Example:
@@ -95,6 +97,8 @@ const response = await fetch("YOUR_API_ENDPOINT_HERE", {
     email: "jane@example.com",
     company: "Acme Corp",        // optional
     phone: "+61 400 000 000",    // optional
+    website: "",                 // hidden honeypot field (must stay blank)
+    submittedAt: new Date().toISOString(),
     message: "I'd like to discuss a DevOps engagement..."
   })
 });
@@ -147,7 +151,8 @@ waterapps-contact-form/
 - **Input validation**: Name, email, message validated server-side
 - **Field limits**: Request size and input lengths constrained to reduce abuse
 - **HTML sanitisation**: All input escaped before use
-- **Anti-spam**: URL limit and spam-pattern checks in backend validation
+- **Anti-spam**: Honeypot (`website`), fill-time check (`submittedAt`), URL limit, spam-pattern checks
+- **Rate limiting**: API Gateway throttling enabled at stage level (low-cost protection)
 - **No secrets in code**: Emails passed via environment variables, AWS auth via OIDC
 
 ## SES Sandbox Note
