@@ -2,6 +2,13 @@
 
 Serverless contact form backend for [waterapps.com.au](https://www.waterapps.com.au). Receives enquiries from the website and sends email notifications via AWS SES.
 
+## Repository Metadata
+
+- Standard name: `waterapps-30-app-contact-form`
+- Depends on: `waterapps-10-bootstrap-oidc-iam` (for CI/CD deployment auth)
+- Provides: Contact form API backend (API Gateway + Lambda + SES)
+- Deploy order: `30`
+
 ## Architecture
 
 ```
@@ -42,7 +49,7 @@ Serverless contact form backend for [waterapps.com.au](https://www.waterapps.com
 ### 1. Clone and configure
 
 ```bash
-git clone https://github.com/vkaushik13/waterapps-contact-form.git
+git clone https://github.com/water-apps/waterapps-contact-form.git
 cd waterapps-contact-form
 
 # Set your email addresses
@@ -82,6 +89,8 @@ terraform output api_endpoint
 
 Add the API endpoint to your contact form's `fetch()` call.
 Recommended frontend behavior:
+- Include a hidden honeypot field `website` (leave blank)
+- Include a timestamp field `submittedAt` when the form is rendered/submitted
 - Surface `fieldErrors` from API responses
 
 Example:
@@ -95,6 +104,8 @@ const response = await fetch("YOUR_API_ENDPOINT_HERE", {
     email: "jane@example.com",
     company: "Acme Corp",        // optional
     phone: "+61 400 000 000",    // optional
+    website: "",                 // hidden honeypot field (must stay blank)
+    submittedAt: new Date().toISOString(),
     message: "I'd like to discuss a DevOps engagement..."
   })
 });
@@ -147,7 +158,8 @@ waterapps-contact-form/
 - **Input validation**: Name, email, message validated server-side
 - **Field limits**: Request size and input lengths constrained to reduce abuse
 - **HTML sanitisation**: All input escaped before use
-- **Anti-spam**: URL limit and spam-pattern checks in backend validation
+- **Anti-spam**: Honeypot (`website`), fill-time check (`submittedAt`), URL limit, spam-pattern checks
+- **Rate limiting**: API Gateway throttling enabled at stage level (low-cost protection)
 - **No secrets in code**: Emails passed via environment variables, AWS auth via OIDC
 
 ## SES Sandbox Note

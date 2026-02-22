@@ -128,11 +128,12 @@ resource "aws_lambda_function" "contact" {
 
   environment {
     variables = {
-      SOURCE_EMAIL    = var.source_email
-      TARGET_EMAIL    = var.target_email
-      ALLOWED_ORIGINS = join(",", var.allowed_origins)
-      MAX_BODY_BYTES  = tostring(var.max_body_bytes)
-      LOG_LEVEL       = var.log_level
+      SOURCE_EMAIL       = var.source_email
+      TARGET_EMAIL       = var.target_email
+      ALLOWED_ORIGINS    = join(",", var.allowed_origins)
+      MAX_BODY_BYTES     = tostring(var.max_body_bytes)
+      MIN_SUBMIT_SECONDS = tostring(var.min_submit_seconds)
+      LOG_LEVEL          = var.log_level
     }
   }
 }
@@ -165,6 +166,12 @@ resource "aws_apigatewayv2_stage" "default" {
   api_id      = aws_apigatewayv2_api.contact.id
   name        = "$default"
   auto_deploy = true
+
+  default_route_settings {
+    throttling_burst_limit   = var.api_throttle_burst_limit
+    throttling_rate_limit    = var.api_throttle_rate_limit
+    detailed_metrics_enabled = true
+  }
 
   access_log_settings {
     destination_arn = aws_cloudwatch_log_group.api_gateway.arn

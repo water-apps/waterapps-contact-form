@@ -55,6 +55,12 @@ variable "max_body_bytes" {
   default     = 16384
 }
 
+variable "min_submit_seconds" {
+  description = "Minimum plausible form fill time before treated as spam (when submittedAt is provided)"
+  type        = number
+  default     = 3
+}
+
 variable "log_level" {
   description = "Lambda log verbosity"
   type        = string
@@ -64,6 +70,18 @@ variable "log_level" {
     condition     = contains(["debug", "info", "warn", "error"], var.log_level)
     error_message = "log_level must be one of: debug, info, warn, error."
   }
+}
+
+variable "api_throttle_burst_limit" {
+  description = "API Gateway burst throttling limit"
+  type        = number
+  default     = 20
+}
+
+variable "api_throttle_rate_limit" {
+  description = "API Gateway steady-state throttling rate (requests/second)"
+  type        = number
+  default     = 5
 }
 
 variable "common_tags" {

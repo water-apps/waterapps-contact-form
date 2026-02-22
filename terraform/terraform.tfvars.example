@@ -16,4 +16,9 @@ allowed_origins = [
 
 # Anti-spam / request handling
 max_body_bytes     = 16384
+min_submit_seconds = 3
 log_level          = "info"
+
+# Low-cost API throttling (requests/sec)
+api_throttle_burst_limit = 20
+api_throttle_rate_limit  = 5

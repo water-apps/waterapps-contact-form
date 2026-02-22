@@ -17,6 +17,7 @@ const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || "")
   .map((s) => s.trim())
   .filter(Boolean);
 const MAX_BODY_BYTES = Number(process.env.MAX_BODY_BYTES || "16384");
+const MIN_SUBMIT_SECONDS = Number(process.env.MIN_SUBMIT_SECONDS || "3");
 const LOG_LEVEL = process.env.LOG_LEVEL || "info";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -61,6 +62,8 @@ function normaliseInput(body) {
     company: truncate((body.company || "").trim(), 120),
     phone: truncate((body.phone || "").trim(), 40),
     message: truncate(body.message?.trim(), 4000),
+    website: truncate((body.website || "").trim(), 200), // honeypot
+    submittedAt: body.submittedAt || body.submitted_at || null,
   };
 }
 
@@ -94,6 +97,28 @@ function validate(input) {
   }
 
   return fieldErrors;
+}
+
+function detectSpamSignals(input, event) {
+  const reasons = [];
+  if (input.website) reasons.push("honeypot_filled");
+
+  if (input.submittedAt) {
+    const submittedMs = Date.parse(input.submittedAt);
+    if (Number.isFinite(submittedMs)) {
+      const elapsedSeconds = (Date.now() - submittedMs) / 1000;
+      if (elapsedSeconds >= 0 && elapsedSeconds < MIN_SUBMIT_SECONDS) {
+        reasons.push("submitted_too_fast");
+      }
+    } else {
+      reasons.push("invalid_submitted_at");
+    }
+  }
+
+  const ua = event.headers?.["user-agent"] || event.headers?.["User-Agent"] || "";
+  if (!ua) reasons.push("missing_user_agent");
+
+  return reasons;
 }
 
 function jsonResponse(statusCode, origin, payload) {
@@ -133,6 +158,7 @@ export const handler = async (event) => {
       timestamp: new Date().toISOString(),
       limits: {
         maxBodyBytes: MAX_BODY_BYTES,
+        minSubmitSeconds: MIN_SUBMIT_SECONDS,
         allowedOrigins: ALLOWED_ORIGINS,
       },
     });
@@ -192,6 +218,24 @@ export const handler = async (event) => {
         code: "validation_failed",
         message: "Please correct the highlighted fields and try again.",
         fieldErrors,
+        requestId,
+      });
+    }
+
+    const spamSignals = detectSpamSignals(input, event);
+    if (spamSignals.length > 0) {
+      // Return success to reduce feedback to bots while dropping spam.
+      log("warn", "Spam submission dropped", {
+        requestId,
+        sourceIp,
+        origin,
+        userAgent,
+        spamSignals,
+      });
+      return jsonResponse(200, origin, {
+        status: "success",
+        message:
+          "Thank you for contacting WaterApps. We'll be in touch within 24 hours.",
         requestId,
       });
     }
