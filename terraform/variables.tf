@@ -49,6 +49,23 @@ variable "allowed_origins" {
   default     = ["https://www.waterapps.com.au", "https://waterapps.com.au"]
 }
 
+variable "max_body_bytes" {
+  description = "Maximum request body size accepted by Lambda (bytes)"
+  type        = number
+  default     = 16384
+}
+
+variable "log_level" {
+  description = "Lambda log verbosity"
+  type        = string
+  default     = "info"
+
+  validation {
+    condition     = contains(["debug", "info", "warn", "error"], var.log_level)
+    error_message = "log_level must be one of: debug, info, warn, error."
+  }
+}
+
 variable "common_tags" {
   description = "Tags applied to all resources"
   type        = map(string)
