@@ -59,7 +59,7 @@ jobs:
   deploy:
     name: "Deploy to AWS"
     needs: validate
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && env.CONTACT_FORM_AUTO_DEPLOY_ENABLED == 'true'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CONTACT_FORM_AUTO_DEPLOY_ENABLED == 'true'
     runs-on: ubuntu-latest
     environment: production
     steps:
@@ -105,7 +105,7 @@ jobs:
   deploy-skipped:
     name: "Deploy Skipped (Auto Deploy Disabled)"
     needs: validate
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && env.CONTACT_FORM_AUTO_DEPLOY_ENABLED != 'true'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CONTACT_FORM_AUTO_DEPLOY_ENABLED != 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Summary
