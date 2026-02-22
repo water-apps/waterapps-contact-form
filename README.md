@@ -125,6 +125,7 @@ waterapps-contact-form/
 │   └── package.json           # AWS SDK SES dependency
 ├── terraform/
 │   ├── main.tf                # Lambda, API GW, IAM, SES, CloudWatch
+│   ├── backend.tf             # Remote state backend declaration (S3)
 │   ├── variables.tf           # All configurable with validation
 │   ├── outputs.tf             # API endpoint + useful references
 │   └── terraform.tfvars.example
@@ -161,7 +162,15 @@ The GitHub Actions workflow uses OIDC federation — no long-lived AWS keys stor
 1. Create an IAM OIDC identity provider for GitHub in your AWS account
 2. Create a deploy role with permissions for Lambda, API GW, SES, IAM, CloudWatch
 3. Add `AWS_DEPLOY_ROLE_ARN` to your GitHub repository secrets
-4. Push to `main` — the workflow handles the rest
+4. Configure remote Terraform state + locking (required for safe CI apply):
+   - Repo vars:
+     - `CONTACT_FORM_TF_STATE_BUCKET`
+     - `CONTACT_FORM_TF_STATE_KEY` (optional override; default: `contact-form/terraform.tfstate`)
+     - `CONTACT_FORM_TF_LOCK_TABLE`
+5. Set `CONTACT_FORM_AUTO_DEPLOY_ENABLED=true` only after the backend is configured
+6. Push to `main` — the workflow handles the rest
+
+Without remote state, CI runners use ephemeral local state and can collide with existing AWS resources.
 
 ## Monitoring
 

@@ -21,6 +21,9 @@ env:
   TF_VERSION: "1.7.5"
   AWS_REGION: "ap-southeast-2"
   CONTACT_FORM_AUTO_DEPLOY_ENABLED: ${{ vars.CONTACT_FORM_AUTO_DEPLOY_ENABLED || 'false' }}
+  CONTACT_FORM_TF_STATE_BUCKET: ${{ vars.CONTACT_FORM_TF_STATE_BUCKET || '' }}
+  CONTACT_FORM_TF_STATE_KEY: ${{ vars.CONTACT_FORM_TF_STATE_KEY || 'contact-form/terraform.tfstate' }}
+  CONTACT_FORM_TF_LOCK_TABLE: ${{ vars.CONTACT_FORM_TF_LOCK_TABLE || '' }}
 
 jobs:
   validate:
@@ -80,9 +83,33 @@ jobs:
         working-directory: lambda
         run: npm ci
 
+      - name: Require Remote State Configuration
+        run: |
+          missing=0
+          if [ -z "${CONTACT_FORM_TF_STATE_BUCKET}" ]; then
+            echo "::error::Repo variable CONTACT_FORM_TF_STATE_BUCKET is required for remote state"
+            missing=1
+          fi
+          if [ -z "${CONTACT_FORM_TF_LOCK_TABLE}" ]; then
+            echo "::error::Repo variable CONTACT_FORM_TF_LOCK_TABLE is required for DynamoDB locking"
+            missing=1
+          fi
+          if [ "$missing" -ne 0 ]; then
+            echo "## Remote State Required" >> "$GITHUB_STEP_SUMMARY"
+            echo "- Set repo variables \`CONTACT_FORM_TF_STATE_BUCKET\` and \`CONTACT_FORM_TF_LOCK_TABLE\` before enabling auto deploy." >> "$GITHUB_STEP_SUMMARY"
+            echo "- Auto deploy remains unsafe without remote Terraform state + locking." >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
       - name: Terraform Init
         working-directory: terraform
-        run: terraform init
+        run: |
+          terraform init \
+            -backend-config="bucket=${CONTACT_FORM_TF_STATE_BUCKET}" \
+            -backend-config="key=${CONTACT_FORM_TF_STATE_KEY}" \
+            -backend-config="region=${AWS_REGION}" \
+            -backend-config="dynamodb_table=${CONTACT_FORM_TF_LOCK_TABLE}" \
+            -backend-config="encrypt=true"
 
       - name: Terraform Plan
         working-directory: terraform
@@ -114,5 +141,5 @@ jobs:
             echo "## Contact Form Deploy Skipped"
             echo "- Auto deploy is disabled: \`CONTACT_FORM_AUTO_DEPLOY_ENABLED=${CONTACT_FORM_AUTO_DEPLOY_ENABLED}\`"
             echo "- Validation/security checks still ran successfully."
-            echo "- Enable auto deploy only after Terraform remote state/import strategy is configured to avoid resource collisions."
+            echo "- Enable auto deploy only after remote Terraform state is configured (S3 + DynamoDB lock) to avoid resource collisions."
           } >> "$GITHUB_STEP_SUMMARY"
