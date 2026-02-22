@@ -2,6 +2,13 @@
 
 Serverless contact form backend for [waterapps.com.au](https://www.waterapps.com.au). Receives enquiries from the website and sends email notifications via AWS SES.
 
+## Repository Metadata
+
+- Standard name: `waterapps-30-app-contact-form`
+- Depends on: `waterapps-10-bootstrap-oidc-iam` (for CI/CD deployment auth)
+- Provides: Contact form API backend (API Gateway + Lambda + SES)
+- Deploy order: `30`
+
 ## Architecture
 
 ```
@@ -42,7 +49,7 @@ Serverless contact form backend for [waterapps.com.au](https://www.waterapps.com
 ### 1. Clone and configure
 
 ```bash
-git clone https://github.com/vkaushik13/waterapps-contact-form.git
+git clone https://github.com/water-apps/waterapps-contact-form.git
 cd waterapps-contact-form
 
 # Set your email addresses
