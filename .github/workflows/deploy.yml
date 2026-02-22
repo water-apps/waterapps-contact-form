@@ -6,7 +6,6 @@ on:
     paths:
       - 'terraform/**'
       - 'lambda/**'
-      - '**'
   pull_request:
     branches: [main]
     paths:
@@ -21,6 +20,7 @@ permissions:
 env:
   TF_VERSION: "1.7.5"
   AWS_REGION: "ap-southeast-2"
+  CONTACT_FORM_AUTO_DEPLOY_ENABLED: ${{ vars.CONTACT_FORM_AUTO_DEPLOY_ENABLED || 'false' }}
 
 jobs:
   validate:
@@ -59,7 +59,7 @@ jobs:
   deploy:
     name: "Deploy to AWS"
     needs: validate
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && env.CONTACT_FORM_AUTO_DEPLOY_ENABLED == 'true'
     runs-on: ubuntu-latest
     environment: production
     steps:
@@ -101,3 +101,18 @@ jobs:
           echo '```' >> $GITHUB_STEP_SUMMARY
           terraform output -raw api_endpoint >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
+
+  deploy-skipped:
+    name: "Deploy Skipped (Auto Deploy Disabled)"
+    needs: validate
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && env.CONTACT_FORM_AUTO_DEPLOY_ENABLED != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Summary
+        run: |
+          {
+            echo "## Contact Form Deploy Skipped"
+            echo "- Auto deploy is disabled: \`CONTACT_FORM_AUTO_DEPLOY_ENABLED=${CONTACT_FORM_AUTO_DEPLOY_ENABLED}\`"
+            echo "- Validation/security checks still ran successfully."
+            echo "- Enable auto deploy only after Terraform remote state/import strategy is configured to avoid resource collisions."
+          } >> "$GITHUB_STEP_SUMMARY"
