@@ -59,12 +59,22 @@ variable "api_throttling_burst_limit" {
   description = "API Gateway stage burst limit to reduce abuse/spam"
   type        = number
   default     = 20
+
+  validation {
+    condition     = var.api_throttling_burst_limit >= 1 && var.api_throttling_burst_limit <= 10000
+    error_message = "api_throttling_burst_limit must be between 1 and 10000."
+  }
 }
 
 variable "api_throttling_rate_limit" {
   description = "API Gateway stage steady-state requests/sec limit to reduce abuse/spam"
   type        = number
   default     = 5
+
+  validation {
+    condition     = var.api_throttling_rate_limit > 0 && var.api_throttling_rate_limit <= 10000
+    error_message = "api_throttling_rate_limit must be greater than 0 and at most 10000."
+  }
 }
 
 variable "log_level" {

@@ -8,7 +8,7 @@ Serverless contact form backend for [waterapps.com.au](https://www.waterapps.com
 ┌─────────────────────┐         ┌──────────────────┐         ┌────────────┐         ┌─────────┐
 │                     │  POST   │                  │ invoke  │            │  send   │         │
 │   GitHub Pages      │────────▶│  API Gateway     │────────▶│   Lambda   │────────▶│   SES   │
-│   waterapps.com.au  │  /contact  HTTP API        │         │  Node.js 18│         │  Email  │
+│   waterapps.com.au  │  /contact  HTTP API        │         │  Node.js 22│         │  Email  │
 │                     │◀────────│  (CORS locked)   │◀────────│            │         │         │
 │                     │  JSON   │                  │  JSON   │            │         │         │
 └─────────────────────┘         └──────────────────┘         └─────┬──────┘         └────┬────┘
@@ -110,11 +110,14 @@ const data = await response.json();
 # Replace with your actual endpoint
 curl -X POST https://YOUR-API-ID.execute-api.ap-southeast-2.amazonaws.com/contact \
   -H "Content-Type: application/json" \
+  -H "Origin: https://www.waterapps.com.au" \
   -d '{"name":"Test","email":"test@example.com","message":"Testing the contact form from terminal"}'
 
 # Health/smoke endpoint (frontend and pipeline friendly)
 curl https://YOUR-API-ID.execute-api.ap-southeast-2.amazonaws.com/health
 ```
+
+Note: `POST /contact` rejects requests without an `Origin` header (`403 origin_required`) to reduce abuse from non-browser clients.
 
 ## Project Structure
 
