@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "Contact form handler for waterapps.com.au",
   "type": "module",
+  "scripts": {
+    "test": "node --test index.test.mjs"
+  },
   "dependencies": {
     "@aws-sdk/client-ses": "^3.500.0"
   }

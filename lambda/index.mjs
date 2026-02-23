@@ -50,47 +50,62 @@ function sanitise(str) {
     .replace(/"/g, "&quot;");
 }
 
-function truncate(str, max) {
-  return String(str || "").slice(0, max);
-}
-
 function normaliseInput(body) {
   return {
-    name: truncate(body.name?.trim(), 120),
-    email: truncate(body.email?.trim().toLowerCase(), 254),
-    company: truncate((body.company || "").trim(), 120),
-    phone: truncate((body.phone || "").trim(), 40),
-    message: truncate(body.message?.trim(), 4000),
+    name: typeof body.name === "string" ? body.name.trim() : body.name,
+    email:
+      typeof body.email === "string"
+        ? body.email.trim().toLowerCase()
+        : body.email,
+    company:
+      typeof body.company === "string"
+        ? body.company.trim()
+        : (body.company ?? ""),
+    phone:
+      typeof body.phone === "string"
+        ? body.phone.trim()
+        : (body.phone ?? ""),
+    message: typeof body.message === "string" ? body.message.trim() : body.message,
   };
 }
 
 function validate(input) {
   const fieldErrors = {};
 
-  if (!input.name || input.name.length < 2) {
+  if (typeof input.name !== "string" || input.name.length < 2) {
     fieldErrors.name = "Name is required (min 2 characters).";
+  } else if (input.name.length > 120) {
+    fieldErrors.name = "Name must be 120 characters or less.";
   }
-  if (!input.email || !EMAIL_RE.test(input.email)) {
+  if (typeof input.email !== "string" || !EMAIL_RE.test(input.email)) {
     fieldErrors.email = "Valid email is required.";
+  } else if (input.email.length > 254) {
+    fieldErrors.email = "Email must be 254 characters or less.";
   }
-  if (input.company && input.company.length > 120) {
+  if (typeof input.company !== "string") {
+    fieldErrors.company = "Company must be text.";
+  } else if (input.company && input.company.length > 120) {
     fieldErrors.company = "Company must be 120 characters or less.";
   }
-  if (input.phone && !PHONE_RE.test(input.phone)) {
+  if (typeof input.phone !== "string") {
+    fieldErrors.phone = "Phone must be text.";
+  } else if (input.phone && !PHONE_RE.test(input.phone)) {
     fieldErrors.phone = "Phone format looks invalid.";
   }
-  if (!input.message || input.message.length < 10) {
+  if (typeof input.message !== "string" || input.message.length < 10) {
     fieldErrors.message = "Message is required (min 10 characters).";
   } else if (input.message.length > 4000) {
     fieldErrors.message = "Message must be 4000 characters or less.";
   }
 
-  const urlCount = input.message.match(/https?:\/\//g)?.length || 0;
-  if (urlCount > 3) {
-    fieldErrors.message = "Message contains too many links.";
-  }
-  if (/(.)\1{14,}/.test(input.message)) {
-    fieldErrors.message = "Message looks like spam.";
+  if (typeof input.message === "string") {
+    const urlCount = input.message.match(/https?:\/\//g)?.length || 0;
+    if (!fieldErrors.message && urlCount > 3) {
+      fieldErrors.message = "Message contains too many links.";
+    }
+    if (!fieldErrors.message && /(.)\1{14,}/.test(input.message)) {
+      fieldErrors.message = "Message looks like spam.";
+    }
   }
 
   return fieldErrors;
@@ -131,10 +146,6 @@ export const handler = async (event) => {
       service: "waterapps-contact-form",
       requestId,
       timestamp: new Date().toISOString(),
-      limits: {
-        maxBodyBytes: MAX_BODY_BYTES,
-        allowedOrigins: ALLOWED_ORIGINS,
-      },
     });
   }
 
@@ -148,7 +159,17 @@ export const handler = async (event) => {
   }
 
   try {
-    if (origin && !isAllowedOrigin(origin)) {
+    if (!origin) {
+      log("warn", "Rejected request without origin", { requestId });
+      return jsonResponse(403, origin, {
+        status: "error",
+        code: "origin_required",
+        message: "Origin header is required.",
+        requestId,
+      });
+    }
+
+    if (!isAllowedOrigin(origin)) {
       log("warn", "Rejected disallowed origin", { requestId, origin, sourceIp });
       return jsonResponse(403, origin, {
         status: "error",
@@ -183,10 +204,19 @@ export const handler = async (event) => {
       });
     }
 
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return jsonResponse(400, origin, {
+        status: "error",
+        code: "invalid_payload",
+        message: "Request body must be a JSON object.",
+        requestId,
+      });
+    }
+
     const input = normaliseInput(parsed);
     const fieldErrors = validate(input);
     if (Object.keys(fieldErrors).length > 0) {
-      log("info", "Validation failed", { requestId, fieldErrors, sourceIp, origin });
+      log("info", "Validation failed", { requestId, fieldErrors, origin });
       return jsonResponse(400, origin, {
         status: "error",
         code: "validation_failed",
@@ -265,12 +295,7 @@ Reply directly to this email to respond to ${name}.
 
     log("info", "Contact form submitted", {
       requestId,
-      sourceIp,
       origin,
-      userAgent,
-      name,
-      email: emailDisplay,
-      company,
       timestamp,
       durationMs: Date.now() - startedAt,
     });
@@ -284,7 +309,6 @@ Reply directly to this email to respond to ${name}.
   } catch (err) {
     log("error", "Contact form error", {
       requestId,
-      sourceIp,
       origin,
       errorName: err?.name,
       errorMessage: err?.message,
