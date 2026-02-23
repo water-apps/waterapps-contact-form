@@ -77,8 +77,12 @@ resource "aws_iam_role_policy" "lambda_ses" {
         "ses:SendEmail",
         "ses:SendRawEmail"
       ]
-      # Scoped to the specific verified identity, not wildcard
-      Resource = "arn:aws:ses:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:identity/${var.source_email}"
+      # Scoped to the verified sender/recipient identities, not wildcard.
+      # SES authorization can evaluate the recipient identity in sandbox flows.
+      Resource = distinct([
+        "arn:aws:ses:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:identity/${var.source_email}",
+        "arn:aws:ses:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:identity/${var.target_email}"
+      ])
     }]
   })
 }
