@@ -131,10 +131,6 @@ export const handler = async (event) => {
       service: "waterapps-contact-form",
       requestId,
       timestamp: new Date().toISOString(),
-      limits: {
-        maxBodyBytes: MAX_BODY_BYTES,
-        allowedOrigins: ALLOWED_ORIGINS,
-      },
     });
   }
 
@@ -148,7 +144,17 @@ export const handler = async (event) => {
   }
 
   try {
-    if (origin && !isAllowedOrigin(origin)) {
+    if (!origin) {
+      log("warn", "Rejected request without origin", { requestId });
+      return jsonResponse(403, origin, {
+        status: "error",
+        code: "origin_required",
+        message: "Origin header is required.",
+        requestId,
+      });
+    }
+
+    if (!isAllowedOrigin(origin)) {
       log("warn", "Rejected disallowed origin", { requestId, origin, sourceIp });
       return jsonResponse(403, origin, {
         status: "error",
@@ -186,7 +192,7 @@ export const handler = async (event) => {
     const input = normaliseInput(parsed);
     const fieldErrors = validate(input);
     if (Object.keys(fieldErrors).length > 0) {
-      log("info", "Validation failed", { requestId, fieldErrors, sourceIp, origin });
+      log("info", "Validation failed", { requestId, fieldErrors, origin });
       return jsonResponse(400, origin, {
         status: "error",
         code: "validation_failed",
@@ -265,12 +271,7 @@ Reply directly to this email to respond to ${name}.
 
     log("info", "Contact form submitted", {
       requestId,
-      sourceIp,
       origin,
-      userAgent,
-      name,
-      email: emailDisplay,
-      company,
       timestamp,
       durationMs: Date.now() - startedAt,
     });
@@ -284,7 +285,6 @@ Reply directly to this email to respond to ${name}.
   } catch (err) {
     log("error", "Contact form error", {
       requestId,
-      sourceIp,
       origin,
       errorName: err?.name,
       errorMessage: err?.message,

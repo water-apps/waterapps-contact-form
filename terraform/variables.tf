@@ -55,6 +55,18 @@ variable "max_body_bytes" {
   default     = 16384
 }
 
+variable "api_throttling_burst_limit" {
+  description = "API Gateway stage burst limit to reduce abuse/spam"
+  type        = number
+  default     = 20
+}
+
+variable "api_throttling_rate_limit" {
+  description = "API Gateway stage steady-state requests/sec limit to reduce abuse/spam"
+  type        = number
+  default     = 5
+}
+
 variable "log_level" {
   description = "Lambda log verbosity"
   type        = string
