@@ -1,0 +1,50 @@
+name: "Contact Form — Smoke Test"
+
+on:
+  workflow_dispatch:
+    inputs:
+      send_email:
+        description: "Run the live success-path send (sends a real email)"
+        required: true
+        default: false
+        type: boolean
+      endpoint:
+        description: "Override API endpoint (optional)"
+        required: false
+        type: string
+  schedule:
+    - cron: "0 23 * * 0-4" # 09:00 AEST/AEDT approximation on weekdays (UTC-based)
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: "Run API smoke checks"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve endpoint
+        id: endpoint
+        env:
+          INPUT_ENDPOINT: ${{ github.event.inputs.endpoint || '' }}
+        run: |
+          if [ -n "${INPUT_ENDPOINT}" ]; then
+            echo "value=${INPUT_ENDPOINT}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=https://roatlihulb.execute-api.ap-southeast-2.amazonaws.com/contact" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run smoke test (no-send)
+        if: github.event_name != 'workflow_dispatch' || github.event.inputs.send_email != 'true'
+        run: |
+          ./scripts/smoke-test.sh \
+            --endpoint "${{ steps.endpoint.outputs.value }}" \
+            --skip-valid-send
+
+      - name: Run smoke test (live send)
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.send_email == 'true'
+        run: |
+          ./scripts/smoke-test.sh \
+            --endpoint "${{ steps.endpoint.outputs.value }}"
