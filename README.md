@@ -119,6 +119,15 @@ curl https://YOUR-API-ID.execute-api.ap-southeast-2.amazonaws.com/health
 
 Note: `POST /contact` rejects requests without an `Origin` header (`403 origin_required`) to reduce abuse from non-browser clients.
 
+Repeatable smoke test script (recommended after deploys / config changes):
+
+```bash
+./scripts/smoke-test.sh \
+  --endpoint https://YOUR-API-ID.execute-api.ap-southeast-2.amazonaws.com/contact
+```
+
+See `/Users/varunau/Projects/waterapps/waterapps-contact-form/docs/smoke-test-runbook.md` for the full runbook and failure triage.
+
 ## Project Structure
 
 ```
@@ -136,8 +145,11 @@ waterapps-contact-form/
 │   └── workflows/
 │       └── deploy.yml         # Validate on PR, deploy on push to main
 ├── docs/
+│   ├── smoke-test-runbook.md      # Post-deploy API smoke test procedure
 │   └── adr/
 │       └── 001-serverless-contact-form.md
+├── scripts/
+│   └── smoke-test.sh          # Repeatable health/validation/origin smoke test
 ├── CLAUDE.md                  # Engineering standards for Claude Code
 ├── CHANGELOG.md
 └── README.md
