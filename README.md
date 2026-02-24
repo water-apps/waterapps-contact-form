@@ -158,6 +158,24 @@ waterapps-contact-form/
 
 New AWS accounts start in SES sandbox mode. This means you can only send to verified email addresses. For a contact form where you're sending to yourself, this is fine. If you later need to send confirmation emails to the submitter, request production SES access in the AWS console.
 
+## Email Authentication Status (In Progress)
+
+The contact form is live and sending, but mailbox providers may still show warnings such as "This message isn't authenticated" until domain-level email authentication is fully configured.
+
+Current status (2026-02-23):
+- SES email identity sending is working for `varun@waterapps.com.au`
+- Contact form delivery is operational
+- Domain authentication hardening for `waterapps.com.au` is still in progress
+
+Planned remediation (to remove mailbox trust warnings):
+- Verify the SES domain identity for `waterapps.com.au` (not only single email addresses)
+- Enable SES DKIM and publish the required DNS CNAME records
+- Publish SPF for the sending domain (including SES)
+- Publish a DMARC record (start with `p=none`, then tighten)
+- Optionally configure a custom MAIL FROM domain for alignment
+
+Until the DNS records are in place and propagated, recipients may see unauthenticated-sender warnings even for legitimate contact form emails.
+
 ## CI/CD Setup (Optional)
 
 The GitHub Actions workflow uses OIDC federation — no long-lived AWS keys stored in GitHub.

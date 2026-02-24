@@ -24,7 +24,7 @@ variable "environment" {
 variable "source_email" {
   description = "SES verified sender email for contact form notifications"
   type        = string
-  default     = "hello@waterapps.com.au"
+  default     = "varun@waterapps.com.au"
 
   validation {
     condition     = can(regex("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$", var.source_email))
@@ -35,7 +35,7 @@ variable "source_email" {
 variable "target_email" {
   description = "Email address that receives contact form submissions"
   type        = string
-  default     = "hello@waterapps.com.au"
+  default     = "varun@waterapps.com.au"
 
   validation {
     condition     = can(regex("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$", var.target_email))
