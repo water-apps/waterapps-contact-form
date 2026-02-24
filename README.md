@@ -158,21 +158,34 @@ waterapps-contact-form/
 
 New AWS accounts start in SES sandbox mode. This means you can only send to verified email addresses. For a contact form where you're sending to yourself, this is fine. If you later need to send confirmation emails to the submitter, request production SES access in the AWS console.
 
-## Email Authentication Status (In Progress)
+## Email Authentication Status (In Progress: DNS Publish Pending)
 
 The contact form is live and sending, but mailbox providers may still show warnings such as "This message isn't authenticated" until domain-level email authentication is fully configured.
 
-Current status (2026-02-23):
+Current status (2026-02-24):
 - SES email identity sending is working for `varun@waterapps.com.au`
 - Contact form delivery is operational
-- Domain authentication hardening for `waterapps.com.au` is still in progress
+- SES domain identity for `waterapps.com.au` has been created in `ap-southeast-2`
+- Easy DKIM is enabled in SES and waiting on DNS propagation (`VerificationStatus=PENDING`, `DkimStatus=PENDING`)
+- Public DNS is not hosted in Route 53 (nameservers: `ns07.domaincontrol.com`, `ns08.domaincontrol.com`) and must be updated in GoDaddy
+- DMARC already exists (`p=quarantine`)
+- SPF TXT record is currently missing at the apex domain
 
-Planned remediation (to remove mailbox trust warnings):
-- Verify the SES domain identity for `waterapps.com.au` (not only single email addresses)
-- Enable SES DKIM and publish the required DNS CNAME records
-- Publish SPF for the sending domain (including SES)
-- Publish a DMARC record (start with `p=none`, then tighten)
-- Optionally configure a custom MAIL FROM domain for alignment
+DNS records to publish in GoDaddy (required to remove mailbox trust warnings):
+
+DKIM (CNAME):
+- `4zszwq5bhhuy7gswpgxhbiizkvvpn6x4._domainkey.waterapps.com.au` -> `4zszwq5bhhuy7gswpgxhbiizkvvpn6x4.dkim.amazonses.com`
+- `76dek2jl4soqnjmeogwaqgayqkrrvp67._domainkey.waterapps.com.au` -> `76dek2jl4soqnjmeogwaqgayqkrrvp67.dkim.amazonses.com`
+- `yyb55it6b6ol7ybfcay633yeeei7zdyp._domainkey.waterapps.com.au` -> `yyb55it6b6ol7ybfcay633yeeei7zdyp.dkim.amazonses.com`
+
+SPF (TXT at apex `waterapps.com.au`, if no existing SPF record):
+- `v=spf1 include:amazonses.com ~all`
+
+DMARC (already present, confirm it remains published):
+- `_dmarc.waterapps.com.au` -> `v=DMARC1; p=quarantine; adkim=r; aspf=r; rua=mailto:dmarc_rua@onsecureserver.net;`
+
+Optional hardening (later):
+- Configure a custom MAIL FROM subdomain (for SPF alignment) after DKIM is verified
 
 Until the DNS records are in place and propagated, recipients may see unauthenticated-sender warnings even for legitimate contact form emails.
 
