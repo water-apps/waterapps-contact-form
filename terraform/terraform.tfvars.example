@@ -4,8 +4,14 @@
 aws_region   = "ap-southeast-2"
 project      = "waterapps"
 environment  = "prod"
-source_email = "varun@waterapps.com.au"
+source_email = "bookings@waterapps.com.au"
 target_email = "varun@waterapps.com.au"
+
+# SES domain authentication + custom MAIL FROM for SPF/DMARC alignment
+manage_ses_domain_authentication = true
+source_email_domain              = "waterapps.com.au"
+mail_from_subdomain              = "mail"
+mail_from_behavior_on_mx_failure = "UseDefaultValue"
 
 allowed_origins = [
   "https://www.waterapps.com.au",

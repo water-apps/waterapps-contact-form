@@ -69,4 +69,8 @@ scripts/smoke-test.sh \
 
 ## Post-Run Notes
 
-- If mailbox providers still show trust warnings, verify SES domain DKIM/SPF status and allow for provider cache delay.
+- If mailbox providers show trust warnings:
+  1. Confirm Terraform-managed SES domain auth resources are applied.
+  2. Confirm DNS records from outputs are published (`_amazonses`, DKIM CNAMEs, MAIL FROM MX/TXT).
+  3. In Gmail "Show original", verify `dkim=pass`, `spf=pass`, `dmarc=pass`.
+  4. Allow for provider cache delay after DNS updates.

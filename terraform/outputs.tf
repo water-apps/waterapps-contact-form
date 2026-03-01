@@ -59,8 +59,33 @@ output "lambda_log_group" {
 }
 
 output "ses_verification_status" {
-  description = "Check your email to verify SES identity after first apply"
-  value       = "Verification email sent to ${var.source_email} — click the link to activate"
+  description = "SES sender identity status note"
+  value       = var.manage_ses_domain_authentication ? "Domain authentication enabled for ${var.source_email_domain}; publish DNS records from outputs and wait for SES verification." : "Verification email sent to ${var.source_email} — click the link to activate."
+}
+
+output "ses_domain_identity_verification_token" {
+  description = "SES domain identity verification token (publish _amazonses TXT when managing domain auth)"
+  value       = var.manage_ses_domain_authentication ? aws_ses_domain_identity.source_domain[0].verification_token : null
+}
+
+output "ses_dkim_tokens" {
+  description = "SES Easy DKIM tokens (publish as CNAME records)"
+  value       = var.manage_ses_domain_authentication ? aws_ses_domain_dkim.source_domain[0].dkim_tokens : []
+}
+
+output "ses_mail_from_domain" {
+  description = "Custom MAIL FROM domain used for SPF alignment"
+  value       = var.manage_ses_domain_authentication ? aws_ses_domain_mail_from.source_domain[0].mail_from_domain : null
+}
+
+output "ses_mail_from_mx_record" {
+  description = "MX target for MAIL FROM domain"
+  value       = var.manage_ses_domain_authentication ? "10 feedback-smtp.${data.aws_region.current.name}.amazonses.com" : null
+}
+
+output "ses_mail_from_spf_txt" {
+  description = "SPF TXT value for MAIL FROM domain"
+  value       = var.manage_ses_domain_authentication ? "v=spf1 include:amazonses.com -all" : null
 }
 
 output "allowed_origins" {
