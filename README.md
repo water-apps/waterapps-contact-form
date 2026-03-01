@@ -1,6 +1,6 @@
-# WaterApps Contact Form — Serverless
+# WaterApps Contact + Booking API — Serverless
 
-Serverless contact form backend for [waterapps.com.au](https://www.waterapps.com.au). Receives enquiries from the website and sends email notifications via AWS SES.
+Serverless contact + booking backend for [waterapps.com.au](https://www.waterapps.com.au). Receives enquiries and discovery-call booking requests, then sends notifications via AWS SES.
 
 ## Architecture
 
@@ -8,7 +8,7 @@ Serverless contact form backend for [waterapps.com.au](https://www.waterapps.com
 ┌─────────────────────┐         ┌──────────────────┐         ┌────────────┐         ┌─────────┐
 │                     │  POST   │                  │ invoke  │            │  send   │         │
 │   GitHub Pages      │────────▶│  API Gateway     │────────▶│   Lambda   │────────▶│   SES   │
-│   waterapps.com.au  │  /contact  HTTP API        │         │  Node.js 22│         │  Email  │
+│   waterapps.com.au  │ /contact,/booking,/availability      │  Node.js 22│         │  Email  │
 │                     │◀────────│  (CORS locked)   │◀────────│            │         │         │
 │                     │  JSON   │                  │  JSON   │            │         │         │
 └─────────────────────┘         └──────────────────┘         └─────┬──────┘         └────┬────┘
@@ -76,6 +76,12 @@ After first `terraform apply`, AWS sends a verification email to your `source_em
 ```bash
 terraform output api_endpoint
 # Example: https://abc123.execute-api.ap-southeast-2.amazonaws.com/contact
+
+terraform output booking_endpoint
+# Example: https://abc123.execute-api.ap-southeast-2.amazonaws.com/booking
+
+terraform output availability_endpoint
+# Example: https://abc123.execute-api.ap-southeast-2.amazonaws.com/availability
 ```
 
 ### 6. Update your website
@@ -104,6 +110,10 @@ const data = await response.json();
 // data.fieldErrors may be returned on validation failure
 ```
 
+Booking endpoints:
+- `GET /availability?days=7` returns UTC booking slots
+- `POST /booking` accepts `name`, `email`, optional `company`, `notes`, `timezone`, and `slotStart` (UTC ISO timestamp)
+
 ### 7. Test it
 
 ```bash
@@ -128,13 +138,25 @@ Repeatable smoke test script (recommended after deploys / config changes):
 
 See `/Users/varunau/Projects/waterapps/waterapps-contact-form/docs/smoke-test-runbook.md` for the full runbook and failure triage.
 
+## Booking API (Calendly-style MVP)
+
+Current capability:
+- Availability API for upcoming slots (`GET /availability`)
+- Booking request API (`POST /booking`)
+- Email notification to `target_email` for each booking request
+- Same-origin CORS and server-side validation
+
+Current limitation:
+- No calendar OAuth sync (Google/Microsoft) yet
+- Request-based booking flow (slot confirmation is finalized by email)
+
 ## Project Structure
 
 ```
 waterapps-contact-form/
 ├── lambda/
-│   ├── index.mjs              # Handler: validate → sanitise → SES send
-│   └── package.json           # AWS SDK SES dependency
+│   ├── index.mjs              # Routes: /contact, /availability, /booking, /health
+│   └── package.json           # Lambda dependencies
 ├── terraform/
 │   ├── main.tf                # Lambda, API GW, IAM, SES, CloudWatch
 │   ├── backend.tf             # Remote state backend declaration (S3)
@@ -164,6 +186,7 @@ waterapps-contact-form/
 - **Field limits**: Request size and input lengths constrained to reduce abuse
 - **HTML sanitisation**: All input escaped before use
 - **Anti-spam**: URL limit and spam-pattern checks in backend validation
+- **Booking guardrails**: slot-window, lead-time, and UTC timestamp checks
 - **No secrets in code**: Emails passed via environment variables, AWS auth via OIDC
 
 ## SES Sandbox Note
