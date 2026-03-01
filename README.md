@@ -67,6 +67,10 @@ terraform plan        # Review what will be created
 terraform apply       # Deploy
 ```
 
+Migration safety note:
+- `preserve_legacy_reviews_stack = true` (default) keeps legacy `/reviews` API/auth/IAM resources managed so booking rollout does not destroy existing reviews infrastructure.
+- Set it to `false` only after an explicit reviews retirement plan is approved.
+
 ### 4. Verify SES
 
 After first `terraform apply`, AWS sends a verification email to your `source_email`. Click the link to activate sending.

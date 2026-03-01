@@ -18,6 +18,31 @@ output "availability_endpoint" {
   value       = "${aws_apigatewayv2_api.contact.api_endpoint}/availability"
 }
 
+output "review_admin_jwt_auth_enabled" {
+  description = "Whether legacy review admin JWT authorizer compatibility mode is enabled"
+  value       = var.preserve_legacy_reviews_stack
+}
+
+output "reviews_submit_endpoint" {
+  description = "Legacy public reviews submit endpoint (preserved during migration)"
+  value       = var.preserve_legacy_reviews_stack ? "${aws_apigatewayv2_api.contact.api_endpoint}/reviews" : null
+}
+
+output "reviews_admin_list_endpoint" {
+  description = "Legacy admin reviews list endpoint (preserved during migration)"
+  value       = var.preserve_legacy_reviews_stack ? "${aws_apigatewayv2_api.contact.api_endpoint}/reviews" : null
+}
+
+output "reviews_admin_moderate_endpoint_template" {
+  description = "Legacy admin review moderation endpoint template"
+  value       = var.preserve_legacy_reviews_stack ? "${aws_apigatewayv2_api.contact.api_endpoint}/reviews/{reviewId}/moderate" : null
+}
+
+output "reviews_table_name" {
+  description = "Legacy reviews table name retained for compatibility tracking"
+  value       = var.preserve_legacy_reviews_stack ? var.legacy_reviews_table_name : null
+}
+
 output "api_id" {
   description = "API Gateway ID for reference"
   value       = aws_apigatewayv2_api.contact.id

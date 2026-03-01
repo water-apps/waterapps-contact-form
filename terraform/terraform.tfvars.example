@@ -28,3 +28,11 @@ booking_min_lead_minutes      = 120
 booking_start_hour_utc        = 0
 booking_end_hour_utc          = 8
 booking_workdays_utc          = [1, 2, 3, 4, 5]
+
+# Legacy reviews compatibility (keep true until explicit retirement/migration)
+preserve_legacy_reviews_stack = true
+legacy_reviews_table_name     = "waterapps-prod-independent-reviews"
+legacy_reviews_table_arn      = "arn:aws:dynamodb:ap-southeast-2:815373603734:table/waterapps-prod-independent-reviews"
+legacy_review_retention_days  = 365
+legacy_review_jwt_issuer      = "https://cognito-idp.ap-southeast-2.amazonaws.com/ap-southeast-2_abk0SHGQp"
+legacy_review_jwt_audience    = "82lu2ao83rcqvjbcbnmcfbe3e"
