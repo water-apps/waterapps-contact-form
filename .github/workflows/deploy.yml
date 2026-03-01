@@ -23,7 +23,6 @@ on:
           - apply
 
 permissions:
-  id-token: write  # OIDC federation with AWS
   contents: read
   pull-requests: read
 
@@ -93,62 +92,13 @@ jobs:
         working-directory: lambda
         run: npm ci
 
-      - name: Check PR plan prerequisites
-        id: prereq
-        env:
-          AWS_DEPLOY_ROLE_ARN: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
-        run: |
-          missing=0
-          if [ -z "${CONTACT_FORM_TF_STATE_BUCKET}" ]; then
-            echo "Missing repo variable CONTACT_FORM_TF_STATE_BUCKET"
-            missing=1
-          fi
-          if [ -z "${CONTACT_FORM_TF_LOCK_TABLE}" ]; then
-            echo "Missing repo variable CONTACT_FORM_TF_LOCK_TABLE"
-            missing=1
-          fi
-          if [ -z "${AWS_DEPLOY_ROLE_ARN}" ]; then
-            echo "Missing repo secret AWS_DEPLOY_ROLE_ARN"
-            missing=1
-          fi
-          if [ "$missing" -eq 0 ]; then
-            echo "enabled=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "enabled=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: PR Plan Skipped (not configured)
-        if: steps.prereq.outputs.enabled != 'true'
+      - name: PR Plan Skipped (security hardening)
         run: |
           {
             echo "## Terraform PR Plan Skipped"
-            echo "- Configure repo secret \`AWS_DEPLOY_ROLE_ARN\`"
-            echo "- Configure repo vars \`CONTACT_FORM_TF_STATE_BUCKET\` and \`CONTACT_FORM_TF_LOCK_TABLE\`"
-            echo "- This job stays non-blocking until remote-state plan prerequisites are configured."
+            echo "- AWS credential issuance is blocked for pull_request events."
+            echo "- Use workflow_dispatch from main for authenticated plan/apply."
           } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Configure AWS Credentials (OIDC)
-        if: steps.prereq.outputs.enabled == 'true'
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Terraform Init (remote backend)
-        if: steps.prereq.outputs.enabled == 'true'
-        working-directory: terraform
-        run: |
-          terraform init \
-            -backend-config="bucket=${CONTACT_FORM_TF_STATE_BUCKET}" \
-            -backend-config="key=${CONTACT_FORM_TF_STATE_KEY}" \
-            -backend-config="region=${AWS_REGION}" \
-            -backend-config="dynamodb_table=${CONTACT_FORM_TF_LOCK_TABLE}" \
-            -backend-config="encrypt=true"
-
-      - name: Terraform Plan (PR)
-        if: steps.prereq.outputs.enabled == 'true'
-        working-directory: terraform
-        run: terraform plan -lock=false -input=false -no-color
 
   deploy:
     name: "Deploy to AWS"
@@ -156,6 +106,9 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CONTACT_FORM_AUTO_DEPLOY_ENABLED == 'true'
     runs-on: ubuntu-latest
     environment: production
+    permissions:
+      id-token: write
+      contents: read
     steps:
       - uses: actions/checkout@v4
 
@@ -226,6 +179,9 @@ jobs:
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     environment: production
+    permissions:
+      id-token: write
+      contents: read
     steps:
       - uses: actions/checkout@v4
 
