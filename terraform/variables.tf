@@ -27,11 +27,8 @@ variable "source_email" {
   default     = "varun@waterapps.com.au"
 
   validation {
-    condition = (
-      can(regex("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$", var.source_email)) &&
-      endswith(lower(var.source_email), "@${lower(var.source_email_domain)}")
-    )
-    error_message = "source_email must be valid and use the configured source_email_domain."
+    condition     = can(regex("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$", var.source_email))
+    error_message = "source_email must be a valid email address."
   }
 }
 

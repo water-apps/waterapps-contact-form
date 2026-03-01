@@ -201,6 +201,13 @@ resource "aws_lambda_function" "contact" {
 
   role = aws_iam_role.lambda.arn
 
+  lifecycle {
+    precondition {
+      condition     = endswith(lower(var.source_email), "@${lower(var.source_email_domain)}")
+      error_message = "source_email must belong to source_email_domain for SES domain alignment."
+    }
+  }
+
   environment {
     variables = merge(
       {
