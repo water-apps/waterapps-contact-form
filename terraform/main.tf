@@ -132,11 +132,18 @@ resource "aws_lambda_function" "contact" {
 
   environment {
     variables = {
-      SOURCE_EMAIL    = var.source_email
-      TARGET_EMAIL    = var.target_email
-      ALLOWED_ORIGINS = join(",", var.allowed_origins)
-      MAX_BODY_BYTES  = tostring(var.max_body_bytes)
-      LOG_LEVEL       = var.log_level
+      SOURCE_EMAIL                  = var.source_email
+      TARGET_EMAIL                  = var.target_email
+      ALLOWED_ORIGINS               = join(",", var.allowed_origins)
+      MAX_BODY_BYTES                = tostring(var.max_body_bytes)
+      LOG_LEVEL                     = var.log_level
+      BOOKING_TYPE                  = var.booking_type
+      BOOKING_SLOT_DURATION_MINUTES = tostring(var.booking_slot_duration_minutes)
+      BOOKING_LOOKAHEAD_DAYS        = tostring(var.booking_lookahead_days)
+      BOOKING_MIN_LEAD_MINUTES      = tostring(var.booking_min_lead_minutes)
+      BOOKING_START_HOUR_UTC        = tostring(var.booking_start_hour_utc)
+      BOOKING_END_HOUR_UTC          = tostring(var.booking_end_hour_utc)
+      BOOKING_WORKDAYS_UTC          = join(",", [for d in var.booking_workdays_utc : tostring(d)])
     }
   }
 }
@@ -205,6 +212,18 @@ resource "aws_apigatewayv2_integration" "lambda" {
 resource "aws_apigatewayv2_route" "post_contact" {
   api_id    = aws_apigatewayv2_api.contact.id
   route_key = "POST /contact"
+  target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+}
+
+resource "aws_apigatewayv2_route" "post_booking" {
+  api_id    = aws_apigatewayv2_api.contact.id
+  route_key = "POST /booking"
+  target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+}
+
+resource "aws_apigatewayv2_route" "get_availability" {
+  api_id    = aws_apigatewayv2_api.contact.id
+  route_key = "GET /availability"
   target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
 }
 

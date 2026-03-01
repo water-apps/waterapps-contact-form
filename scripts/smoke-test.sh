@@ -13,6 +13,7 @@ Options:
   --origin URL         Origin header for browser-like requests (default: https://www.waterapps.com.au)
   --email EMAIL        Email value used in payloads (default: smoke-test@waterapps.com.au)
   --skip-valid-send    Skip the live success-path POST that sends an email
+  --include-booking    Also run /availability and /booking checks (sends booking email)
   --help               Show this help
 
 Checks:
@@ -20,6 +21,7 @@ Checks:
   2. POST /contact without Origin returns 403 origin_required
   3. POST /contact with invalid field types returns 400 validation_failed
   4. POST /contact valid payload returns 200 success (unless --skip-valid-send)
+  5. Optional: GET /availability returns slots and POST /booking accepts a request
 EOF
 }
 
@@ -27,6 +29,7 @@ ENDPOINT="${CONTACT_FORM_API_ENDPOINT:-}"
 ORIGIN="${CONTACT_FORM_ORIGIN:-https://www.waterapps.com.au}"
 EMAIL="${CONTACT_FORM_SMOKE_EMAIL:-smoke-test@waterapps.com.au}"
 SKIP_VALID_SEND=0
+INCLUDE_BOOKING=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -44,6 +47,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --skip-valid-send)
       SKIP_VALID_SEND=1
+      shift
+      ;;
+    --include-booking)
+      INCLUDE_BOOKING=1
       shift
       ;;
     --help|-h)
@@ -75,6 +82,8 @@ normalize_endpoint() {
     CONTACT_URL="$raw/contact"
   fi
   HEALTH_URL="$BASE_URL/health"
+  AVAILABILITY_URL="$BASE_URL/availability"
+  BOOKING_URL="$BASE_URL/booking"
 }
 
 normalize_endpoint "$ENDPOINT"
@@ -135,6 +144,7 @@ body_contains() {
 say "WaterApps contact-form smoke test"
 say "Contact endpoint: $CONTACT_URL"
 say "Health endpoint:   $HEALTH_URL"
+say "Booking endpoint:  $BOOKING_URL"
 say "Origin header:     $ORIGIN"
 say
 
@@ -179,6 +189,31 @@ else
     pass "POST /contact valid payload returns 200 success"
   else
     fail "POST /contact valid payload expected 200 success (got $valid_code)" "$valid_body"
+  fi
+fi
+
+# 5) Optional booking checks
+if [[ "$INCLUDE_BOOKING" -eq 1 ]]; then
+  availability_body="$TMP_DIR/availability.json"
+  availability_code="$(curl -sS "$AVAILABILITY_URL?days=3" -H "Origin: $ORIGIN" -o "$availability_body" -w "%{http_code}" || true)"
+  if [[ "$availability_code" == "200" ]] && body_contains "$availability_body" '"slots"'; then
+    pass "GET /availability returns 200 with slots payload"
+
+    slot_start="$(grep -oE '"slotStart":"[^"]+"' "$availability_body" | head -n1 | sed -E 's/"slotStart":"([^"]+)"/\1/')"
+    if [[ -n "$slot_start" ]]; then
+      booking_body="$TMP_DIR/booking.json"
+      booking_payload='{"name":"Booking Smoke Test","email":"'"$EMAIL"'","company":"WaterApps","notes":"Automated booking smoke test","timezone":"Australia/Sydney","slotStart":"'"$slot_start"'"}'
+      booking_code="$(curl_json "POST" "$BOOKING_URL" "$booking_body" "$booking_payload" "$ORIGIN" || true)"
+      if [[ "$booking_code" == "200" ]] && body_contains "$booking_body" '"status":"success"'; then
+        pass "POST /booking valid payload returns 200 success"
+      else
+        fail "POST /booking valid payload expected 200 success (got $booking_code)" "$booking_body"
+      fi
+    else
+      fail "GET /availability returned 200 but no slotStart values were found" "$availability_body"
+    fi
+  else
+    fail "GET /availability expected 200 with slots payload (got $availability_code)" "$availability_body"
   fi
 fi
 

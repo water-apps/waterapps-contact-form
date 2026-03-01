@@ -88,6 +88,81 @@ variable "log_level" {
   }
 }
 
+variable "booking_type" {
+  description = "Logical booking type label used in notifications"
+  type        = string
+  default     = "DISCOVERY_30M"
+}
+
+variable "booking_slot_duration_minutes" {
+  description = "Booking slot duration in minutes"
+  type        = number
+  default     = 30
+
+  validation {
+    condition     = var.booking_slot_duration_minutes >= 15 && var.booking_slot_duration_minutes <= 120
+    error_message = "booking_slot_duration_minutes must be between 15 and 120."
+  }
+}
+
+variable "booking_lookahead_days" {
+  description = "How many days ahead availability is exposed"
+  type        = number
+  default     = 14
+
+  validation {
+    condition     = var.booking_lookahead_days >= 1 && var.booking_lookahead_days <= 60
+    error_message = "booking_lookahead_days must be between 1 and 60."
+  }
+}
+
+variable "booking_min_lead_minutes" {
+  description = "Minimum lead time before a slot can be requested"
+  type        = number
+  default     = 120
+
+  validation {
+    condition     = var.booking_min_lead_minutes >= 0 && var.booking_min_lead_minutes <= 10080
+    error_message = "booking_min_lead_minutes must be between 0 and 10080."
+  }
+}
+
+variable "booking_start_hour_utc" {
+  description = "Booking window start hour (UTC, inclusive)"
+  type        = number
+  default     = 0
+
+  validation {
+    condition     = var.booking_start_hour_utc >= 0 && var.booking_start_hour_utc <= 23
+    error_message = "booking_start_hour_utc must be between 0 and 23."
+  }
+}
+
+variable "booking_end_hour_utc" {
+  description = "Booking window end hour (UTC, exclusive)"
+  type        = number
+  default     = 8
+
+  validation {
+    condition     = var.booking_end_hour_utc >= 1 && var.booking_end_hour_utc <= 24
+    error_message = "booking_end_hour_utc must be between 1 and 24."
+  }
+}
+
+variable "booking_workdays_utc" {
+  description = "Allowed booking weekdays in UTC (0=Sun .. 6=Sat)"
+  type        = list(number)
+  default     = [1, 2, 3, 4, 5]
+
+  validation {
+    condition = (
+      length(var.booking_workdays_utc) > 0 &&
+      length([for day in var.booking_workdays_utc : day if day >= 0 && day <= 6]) == length(var.booking_workdays_utc)
+    )
+    error_message = "booking_workdays_utc values must be integers between 0 and 6."
+  }
+}
+
 variable "common_tags" {
   description = "Tags applied to all resources"
   type        = map(string)

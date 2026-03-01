@@ -4,8 +4,8 @@
 aws_region   = "ap-southeast-2"
 project      = "waterapps"
 environment  = "prod"
-source_email = "hello@waterapps.com.au"
-target_email = "hello@waterapps.com.au"
+source_email = "varun@waterapps.com.au"
+target_email = "varun@waterapps.com.au"
 
 allowed_origins = [
   "https://www.waterapps.com.au",
@@ -19,3 +19,12 @@ max_body_bytes     = 16384
 api_throttling_burst_limit = 20
 api_throttling_rate_limit  = 5
 log_level          = "info"
+
+# Scheduler settings (UTC)
+booking_type                  = "DISCOVERY_30M"
+booking_slot_duration_minutes = 30
+booking_lookahead_days        = 14
+booking_min_lead_minutes      = 120
+booking_start_hour_utc        = 0
+booking_end_hour_utc          = 8
+booking_workdays_utc          = [1, 2, 3, 4, 5]

@@ -8,6 +8,16 @@ output "health_endpoint" {
   value       = "${aws_apigatewayv2_api.contact.api_endpoint}/health"
 }
 
+output "booking_endpoint" {
+  description = "Booking request endpoint for discovery calls"
+  value       = "${aws_apigatewayv2_api.contact.api_endpoint}/booking"
+}
+
+output "availability_endpoint" {
+  description = "Availability endpoint for scheduler UI"
+  value       = "${aws_apigatewayv2_api.contact.api_endpoint}/availability"
+}
+
 output "api_id" {
   description = "API Gateway ID for reference"
   value       = aws_apigatewayv2_api.contact.id
