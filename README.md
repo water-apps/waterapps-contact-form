@@ -1,6 +1,6 @@
 # WaterApps Contact Form — Serverless
 
-Serverless contact form backend for [waterapps.com.au](https://www.waterapps.com.au). Receives enquiries from the website and sends email notifications via AWS SES.
+Serverless backend for [waterapps.com.au](https://www.waterapps.com.au). Receives website enquiries and independent review submissions. Contact requests are emailed via AWS SES; review submissions are stored in DynamoDB for moderation and can be managed through admin API routes.
 
 ## Architecture
 
@@ -76,6 +76,8 @@ After first `terraform apply`, AWS sends a verification email to your `source_em
 ```bash
 terraform output api_endpoint
 # Example: https://abc123.execute-api.ap-southeast-2.amazonaws.com/contact
+terraform output reviews_submit_endpoint
+# Example: https://abc123.execute-api.ap-southeast-2.amazonaws.com/reviews
 ```
 
 ### 6. Update your website
@@ -128,15 +130,20 @@ Repeatable smoke test script (recommended after deploys / config changes):
 
 See `/Users/varunau/Projects/waterapps/waterapps-contact-form/docs/smoke-test-runbook.md` for the full runbook and failure triage.
 
+Admin review moderation API routes:
+
+- `GET /reviews?status=pending&limit=25` (JWT-auth protected when `enable_review_admin_jwt_auth=true`)
+- `POST /reviews/{reviewId}/moderate` with JSON body: `{"decision":"approved|rejected","note":"optional"}`
+
 ## Project Structure
 
 ```
 waterapps-contact-form/
 ├── lambda/
-│   ├── index.mjs              # Handler: validate → sanitise → SES send
+│   ├── index.mjs              # Handler: /contact + /reviews + moderation routes
 │   └── package.json           # AWS SDK SES dependency
 ├── terraform/
-│   ├── main.tf                # Lambda, API GW, IAM, SES, CloudWatch
+│   ├── main.tf                # Lambda, API GW, IAM, SES, DynamoDB, CloudWatch
 │   ├── backend.tf             # Remote state backend declaration (S3)
 │   ├── variables.tf           # All configurable with validation
 │   ├── outputs.tf             # API endpoint + useful references
@@ -164,7 +171,13 @@ waterapps-contact-form/
 - **Field limits**: Request size and input lengths constrained to reduce abuse
 - **HTML sanitisation**: All input escaped before use
 - **Anti-spam**: URL limit and spam-pattern checks in backend validation
+- **Review moderation controls**: Review submissions are stored as `pending` and require explicit admin approval/rejection workflow
+- **Admin API auth**: API Gateway JWT authorizer support for review management routes
 - **No secrets in code**: Emails passed via environment variables, AWS auth via OIDC
+
+## Terraform-Only Infra Rule
+
+All infrastructure mutations for this service must be performed via Terraform in `terraform/` (plan/apply), not by manual console changes.
 
 ## SES Sandbox Note
 

@@ -13,6 +13,7 @@ Options:
   --origin URL         Origin header for browser-like requests (default: https://www.waterapps.com.au)
   --email EMAIL        Email value used in payloads (default: smoke-test@waterapps.com.au)
   --skip-valid-send    Skip the live success-path POST that sends an email
+  --skip-review-send   Skip the live review submission POST
   --help               Show this help
 
 Checks:
@@ -20,6 +21,7 @@ Checks:
   2. POST /contact without Origin returns 403 origin_required
   3. POST /contact with invalid field types returns 400 validation_failed
   4. POST /contact valid payload returns 200 success (unless --skip-valid-send)
+  5. POST /reviews valid payload returns 200 success (unless --skip-review-send)
 EOF
 }
 
@@ -27,6 +29,7 @@ ENDPOINT="${CONTACT_FORM_API_ENDPOINT:-}"
 ORIGIN="${CONTACT_FORM_ORIGIN:-https://www.waterapps.com.au}"
 EMAIL="${CONTACT_FORM_SMOKE_EMAIL:-smoke-test@waterapps.com.au}"
 SKIP_VALID_SEND=0
+SKIP_REVIEW_SEND=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -44,6 +47,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --skip-valid-send)
       SKIP_VALID_SEND=1
+      shift
+      ;;
+    --skip-review-send)
+      SKIP_REVIEW_SEND=1
       shift
       ;;
     --help|-h)
@@ -75,6 +82,7 @@ normalize_endpoint() {
     CONTACT_URL="$raw/contact"
   fi
   HEALTH_URL="$BASE_URL/health"
+  REVIEWS_URL="$BASE_URL/reviews"
 }
 
 normalize_endpoint "$ENDPOINT"
@@ -135,6 +143,7 @@ body_contains() {
 say "WaterApps contact-form smoke test"
 say "Contact endpoint: $CONTACT_URL"
 say "Health endpoint:   $HEALTH_URL"
+say "Reviews endpoint:  $REVIEWS_URL"
 say "Origin header:     $ORIGIN"
 say
 
@@ -179,6 +188,20 @@ else
     pass "POST /contact valid payload returns 200 success"
   else
     fail "POST /contact valid payload expected 200 success (got $valid_code)" "$valid_body"
+  fi
+fi
+
+# 5) Valid review submission
+if [[ "$SKIP_REVIEW_SEND" -eq 1 ]]; then
+  say "SKIP: Review send check skipped (--skip-review-send)"
+else
+  review_body="$TMP_DIR/review-valid.json"
+  review_payload='{"name":"Review Smoke Test","email":"'"$EMAIL"'","role":"Engineering Manager","company":"WaterApps","linkedin":"https://www.linkedin.com/in/review-smoke-test","review":"This is a smoke-test review submission to validate API routing and moderation intake path.","rating":"5","consent":true}'
+  review_code="$(curl_json "POST" "$REVIEWS_URL" "$review_body" "$review_payload" "$ORIGIN" || true)"
+  if [[ "$review_code" == "200" ]] && body_contains "$review_body" '"status":"success"'; then
+    pass "POST /reviews valid payload returns 200 success"
+  else
+    fail "POST /reviews valid payload expected 200 success (got $review_code)" "$review_body"
   fi
 fi
 

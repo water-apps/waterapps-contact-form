@@ -19,3 +19,15 @@ max_body_bytes     = 16384
 api_throttling_burst_limit = 20
 api_throttling_rate_limit  = 5
 log_level          = "info"
+
+# Independent reviews persistence
+# reviews_table_name = "waterapps-prod-independent-reviews" # optional override
+review_retention_days = 365
+
+# Admin API authorization (recommended: keep enabled)
+# Use values from waterapps-20-infra-enterprise/02-security outputs:
+# - management_portal_cognito_issuer_url
+# - management_portal_cognito_user_pool_client_id
+enable_review_admin_jwt_auth = true
+review_admin_jwt_issuer       = "https://cognito-idp.ap-southeast-2.amazonaws.com/ap-southeast-2_xxxxxxxxx"
+review_admin_jwt_audience     = ["xxxxxxxxxxxxxxxxxxxxxxxxxx"]

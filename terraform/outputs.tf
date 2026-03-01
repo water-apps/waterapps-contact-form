@@ -3,6 +3,21 @@ output "api_endpoint" {
   value       = "${aws_apigatewayv2_api.contact.api_endpoint}/contact"
 }
 
+output "reviews_submit_endpoint" {
+  description = "Independent review submission endpoint for public website form"
+  value       = "${aws_apigatewayv2_api.contact.api_endpoint}/reviews"
+}
+
+output "reviews_admin_list_endpoint" {
+  description = "Admin endpoint to list moderated/pending review submissions"
+  value       = "${aws_apigatewayv2_api.contact.api_endpoint}/reviews"
+}
+
+output "reviews_admin_moderate_endpoint_template" {
+  description = "Admin endpoint template to approve/reject a review"
+  value       = "${aws_apigatewayv2_api.contact.api_endpoint}/reviews/{reviewId}/moderate"
+}
+
 output "health_endpoint" {
   description = "Health endpoint for smoke testing frontend integration"
   value       = "${aws_apigatewayv2_api.contact.api_endpoint}/health"
@@ -31,4 +46,14 @@ output "ses_verification_status" {
 output "allowed_origins" {
   description = "Configured CORS allowed origins"
   value       = var.allowed_origins
+}
+
+output "reviews_table_name" {
+  description = "DynamoDB table storing independent review submissions"
+  value       = aws_dynamodb_table.independent_reviews.name
+}
+
+output "review_admin_jwt_auth_enabled" {
+  description = "Whether review admin endpoints require JWT authorization"
+  value       = var.enable_review_admin_jwt_auth
 }

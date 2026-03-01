@@ -88,6 +88,51 @@ variable "log_level" {
   }
 }
 
+variable "reviews_table_name" {
+  description = "Optional explicit DynamoDB table name for independent review submissions"
+  type        = string
+  default     = ""
+}
+
+variable "review_retention_days" {
+  description = "Retention period for review records (TTL) in days"
+  type        = number
+  default     = 365
+
+  validation {
+    condition     = var.review_retention_days >= 30 && var.review_retention_days <= 3650
+    error_message = "review_retention_days must be between 30 and 3650 days."
+  }
+}
+
+variable "enable_review_admin_jwt_auth" {
+  description = "Require JWT auth on admin review routes (GET /reviews and POST /reviews/{reviewId}/moderate)"
+  type        = bool
+  default     = true
+}
+
+variable "review_admin_jwt_issuer" {
+  description = "JWT issuer URL for review admin API authorization (for Cognito use the user pool issuer URL)"
+  type        = string
+  default     = null
+
+  validation {
+    condition     = !var.enable_review_admin_jwt_auth || (var.review_admin_jwt_issuer != null && startswith(var.review_admin_jwt_issuer, "https://"))
+    error_message = "review_admin_jwt_issuer must be set to an https URL when enable_review_admin_jwt_auth is true."
+  }
+}
+
+variable "review_admin_jwt_audience" {
+  description = "JWT audience for review admin API authorization (for Cognito use the app client ID)"
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition     = !var.enable_review_admin_jwt_auth || length(var.review_admin_jwt_audience) > 0
+    error_message = "review_admin_jwt_audience must include at least one value when enable_review_admin_jwt_auth is true."
+  }
+}
+
 variable "common_tags" {
   description = "Tags applied to all resources"
   type        = map(string)

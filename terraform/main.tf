@@ -45,6 +45,10 @@ provider "aws" {
 data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
 
+locals {
+  reviews_table_name = trimspace(var.reviews_table_name) != "" ? trimspace(var.reviews_table_name) : "${var.project}-${var.environment}-independent-reviews"
+}
+
 # ─────────────────────────────────────────────
 # IAM — Least privilege for Lambda
 # ─────────────────────────────────────────────
@@ -106,6 +110,78 @@ resource "aws_iam_role_policy" "lambda_logging" {
   })
 }
 
+resource "aws_iam_role_policy" "lambda_dynamodb_reviews" {
+  name = "${var.project}-${var.environment}-reviews-dynamodb"
+  role = aws_iam_role.lambda.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "dynamodb:PutItem",
+          "dynamodb:GetItem",
+          "dynamodb:UpdateItem"
+        ]
+        Resource = aws_dynamodb_table.independent_reviews.arn
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "dynamodb:Query"
+        ]
+        Resource = "${aws_dynamodb_table.independent_reviews.arn}/index/status-created-at-index"
+      }
+    ]
+  })
+}
+
+# ─────────────────────────────────────────────
+# DYNAMODB — Independent review submissions
+# ─────────────────────────────────────────────
+
+resource "aws_dynamodb_table" "independent_reviews" {
+  name         = local.reviews_table_name
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "review_id"
+
+  attribute {
+    name = "review_id"
+    type = "S"
+  }
+
+  attribute {
+    name = "status"
+    type = "S"
+  }
+
+  attribute {
+    name = "created_at"
+    type = "S"
+  }
+
+  global_secondary_index {
+    name            = "status-created-at-index"
+    hash_key        = "status"
+    range_key       = "created_at"
+    projection_type = "ALL"
+  }
+
+  ttl {
+    enabled        = true
+    attribute_name = "expires_at"
+  }
+
+  server_side_encryption {
+    enabled = true
+  }
+
+  point_in_time_recovery {
+    enabled = true
+  }
+}
+
 # ─────────────────────────────────────────────
 # LAMBDA
 # ─────────────────────────────────────────────
@@ -132,11 +208,13 @@ resource "aws_lambda_function" "contact" {
 
   environment {
     variables = {
-      SOURCE_EMAIL    = var.source_email
-      TARGET_EMAIL    = var.target_email
-      ALLOWED_ORIGINS = join(",", var.allowed_origins)
-      MAX_BODY_BYTES  = tostring(var.max_body_bytes)
-      LOG_LEVEL       = var.log_level
+      SOURCE_EMAIL          = var.source_email
+      TARGET_EMAIL          = var.target_email
+      ALLOWED_ORIGINS       = join(",", var.allowed_origins)
+      MAX_BODY_BYTES        = tostring(var.max_body_bytes)
+      LOG_LEVEL             = var.log_level
+      REVIEWS_TABLE_NAME    = aws_dynamodb_table.independent_reviews.name
+      REVIEW_RETENTION_DAYS = tostring(var.review_retention_days)
     }
   }
 }
@@ -202,6 +280,20 @@ resource "aws_apigatewayv2_integration" "lambda" {
   payload_format_version = "2.0"
 }
 
+resource "aws_apigatewayv2_authorizer" "review_admin_jwt" {
+  count = var.enable_review_admin_jwt_auth ? 1 : 0
+
+  api_id           = aws_apigatewayv2_api.contact.id
+  authorizer_type  = "JWT"
+  identity_sources = ["$request.header.Authorization"]
+  name             = "${var.project}-${var.environment}-review-admin-jwt"
+
+  jwt_configuration {
+    issuer   = var.review_admin_jwt_issuer
+    audience = var.review_admin_jwt_audience
+  }
+}
+
 resource "aws_apigatewayv2_route" "post_contact" {
   api_id    = aws_apigatewayv2_api.contact.id
   route_key = "POST /contact"
@@ -212,6 +304,30 @@ resource "aws_apigatewayv2_route" "get_health" {
   api_id    = aws_apigatewayv2_api.contact.id
   route_key = "GET /health"
   target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+}
+
+resource "aws_apigatewayv2_route" "post_reviews" {
+  api_id    = aws_apigatewayv2_api.contact.id
+  route_key = "POST /reviews"
+  target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+}
+
+resource "aws_apigatewayv2_route" "get_reviews" {
+  api_id    = aws_apigatewayv2_api.contact.id
+  route_key = "GET /reviews"
+  target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+
+  authorization_type = var.enable_review_admin_jwt_auth ? "JWT" : "NONE"
+  authorizer_id      = var.enable_review_admin_jwt_auth ? aws_apigatewayv2_authorizer.review_admin_jwt[0].id : null
+}
+
+resource "aws_apigatewayv2_route" "post_review_moderate" {
+  api_id    = aws_apigatewayv2_api.contact.id
+  route_key = "POST /reviews/{reviewId}/moderate"
+  target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+
+  authorization_type = var.enable_review_admin_jwt_auth ? "JWT" : "NONE"
+  authorizer_id      = var.enable_review_admin_jwt_auth ? aws_apigatewayv2_authorizer.review_admin_jwt[0].id : null
 }
 
 # Allow API Gateway to invoke Lambda
