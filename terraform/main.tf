@@ -45,6 +45,15 @@ provider "aws" {
 data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
 
+locals {
+  mail_from_domain = "${var.mail_from_subdomain}.${var.source_email_domain}"
+  ses_identity_arns = distinct([
+    "arn:aws:ses:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:identity/${var.source_email}",
+    "arn:aws:ses:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:identity/${var.target_email}",
+    "arn:aws:ses:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:identity/${var.source_email_domain}"
+  ])
+}
+
 resource "aws_dynamodb_table" "independent_reviews" {
   count = var.preserve_legacy_reviews_stack ? 1 : 0
 
@@ -113,10 +122,7 @@ resource "aws_iam_role_policy" "lambda_ses" {
       ]
       # Scoped to the verified sender/recipient identities, not wildcard.
       # SES authorization can evaluate the recipient identity in sandbox flows.
-      Resource = distinct([
-        "arn:aws:ses:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:identity/${var.source_email}",
-        "arn:aws:ses:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:identity/${var.target_email}"
-      ])
+      Resource = local.ses_identity_arns
     }]
   })
 }
@@ -368,4 +374,24 @@ resource "aws_ses_email_identity" "source" {
 resource "aws_ses_email_identity" "target" {
   count = var.source_email != var.target_email ? 1 : 0
   email = var.target_email
+}
+
+resource "aws_ses_domain_identity" "source_domain" {
+  count = var.manage_ses_domain_authentication ? 1 : 0
+
+  domain = var.source_email_domain
+}
+
+resource "aws_ses_domain_dkim" "source_domain" {
+  count = var.manage_ses_domain_authentication ? 1 : 0
+
+  domain = aws_ses_domain_identity.source_domain[0].domain
+}
+
+resource "aws_ses_domain_mail_from" "source_domain" {
+  count = var.manage_ses_domain_authentication ? 1 : 0
+
+  domain                 = aws_ses_domain_identity.source_domain[0].domain
+  mail_from_domain       = local.mail_from_domain
+  behavior_on_mx_failure = var.mail_from_behavior_on_mx_failure
 }

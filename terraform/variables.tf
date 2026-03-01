@@ -27,8 +27,50 @@ variable "source_email" {
   default     = "varun@waterapps.com.au"
 
   validation {
-    condition     = can(regex("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$", var.source_email))
-    error_message = "Must be a valid email address."
+    condition = (
+      can(regex("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$", var.source_email)) &&
+      endswith(lower(var.source_email), "@${lower(var.source_email_domain)}")
+    )
+    error_message = "source_email must be valid and use the configured source_email_domain."
+  }
+}
+
+variable "manage_ses_domain_authentication" {
+  description = "Create and manage SES domain identity, DKIM, and custom MAIL FROM records metadata"
+  type        = bool
+  default     = true
+}
+
+variable "source_email_domain" {
+  description = "Domain used for SES domain authentication and DKIM signing"
+  type        = string
+  default     = "waterapps.com.au"
+
+  validation {
+    condition     = can(regex("^[a-z0-9.-]+\\.[a-z]{2,}$", var.source_email_domain))
+    error_message = "source_email_domain must be a valid DNS domain."
+  }
+}
+
+variable "mail_from_subdomain" {
+  description = "MAIL FROM subdomain prefix used for SPF alignment (for example: mail => mail.waterapps.com.au)"
+  type        = string
+  default     = "mail"
+
+  validation {
+    condition     = can(regex("^[a-z0-9-]+$", var.mail_from_subdomain))
+    error_message = "mail_from_subdomain must contain lowercase letters, numbers, or hyphens."
+  }
+}
+
+variable "mail_from_behavior_on_mx_failure" {
+  description = "Behavior when MAIL FROM MX lookup fails"
+  type        = string
+  default     = "UseDefaultValue"
+
+  validation {
+    condition     = contains(["UseDefaultValue", "RejectMessage"], var.mail_from_behavior_on_mx_failure)
+    error_message = "mail_from_behavior_on_mx_failure must be UseDefaultValue or RejectMessage."
   }
 }
 

@@ -197,36 +197,47 @@ waterapps-contact-form/
 
 New AWS accounts start in SES sandbox mode. This means you can only send to verified email addresses. For a contact form where you're sending to yourself, this is fine. If you later need to send confirmation emails to the submitter, request production SES access in the AWS console.
 
-## Email Authentication Status (Completed)
+## Email Authentication (Required for Gmail Trust)
 
-The contact form is live and domain-level SES email authentication is configured for `waterapps.com.au`.
+To avoid warnings like "sender can't be verified", deploy SES with:
 
-Current status (2026-02-24):
-- SES email identity sending is working for `varun@waterapps.com.au`
-- Contact form delivery is operational
-- SES domain identity for `waterapps.com.au` is verified in `ap-southeast-2` (`VerificationStatus=SUCCESS`)
-- Easy DKIM is enabled and verified (`DkimStatus=SUCCESS`)
-- Public DNS is hosted in GoDaddy (not Route 53)
-- DMARC already exists (`p=quarantine`)
-- SPF TXT record is published at the apex domain
+1. Domain identity (`source_email_domain`, default: `waterapps.com.au`)
+2. Easy DKIM (`aws_ses_domain_dkim`)
+3. Custom MAIL FROM subdomain (`aws_ses_domain_mail_from`, default: `mail.waterapps.com.au`)
+4. Sender address from that domain (`source_email`, recommended: `bookings@waterapps.com.au`)
 
-Configured DNS records in GoDaddy:
+This repo now manages all SES auth resources in Terraform (enabled by default with `manage_ses_domain_authentication = true`).
 
-DKIM (CNAME):
-- `4zszwq5bhhuy7gswpgxhbiizkvvpn6x4._domainkey.waterapps.com.au` -> `4zszwq5bhhuy7gswpgxhbiizkvvpn6x4.dkim.amazonses.com`
-- `76dek2jl4soqnjmeogwaqgayqkrrvp67._domainkey.waterapps.com.au` -> `76dek2jl4soqnjmeogwaqgayqkrrvp67.dkim.amazonses.com`
-- `yyb55it6b6ol7ybfcay633yeeei7zdyp._domainkey.waterapps.com.au` -> `yyb55it6b6ol7ybfcay633yeeei7zdyp.dkim.amazonses.com`
+### DNS records to publish
 
-SPF (TXT at apex `waterapps.com.au`):
-- `v=spf1 include:amazonses.com ~all`
+After `terraform apply`, publish values from outputs:
 
-DMARC (already present, confirm it remains published):
-- `_dmarc.waterapps.com.au` -> `v=DMARC1; p=quarantine; adkim=r; aspf=r; rua=mailto:dmarc_rua@onsecureserver.net;`
+1. Domain verification TXT:
+- `_amazonses.<source_email_domain>` = `ses_domain_identity_verification_token`
 
-Optional hardening (later):
-- Configure a custom MAIL FROM subdomain (for SPF alignment) after DKIM is verified
+2. DKIM CNAME (3 records):
+- `<token>._domainkey.<source_email_domain>` -> `<token>.dkim.amazonses.com`
+- tokens are in output `ses_dkim_tokens`
 
-Note: Some mailbox providers may continue to show trust warnings temporarily due to provider-side caching/learning, even after SPF/DKIM verification is complete.
+3. MAIL FROM MX:
+- `<mail_from_subdomain>.<source_email_domain>` MX `10 feedback-smtp.<region>.amazonses.com`
+- output: `ses_mail_from_mx_record`
+
+4. MAIL FROM SPF TXT:
+- `<mail_from_subdomain>.<source_email_domain>` TXT `v=spf1 include:amazonses.com -all`
+- output: `ses_mail_from_spf_txt`
+
+5. DMARC (domain-level):
+- `_dmarc.<source_email_domain>` should remain present and enforced
+
+### Verification checklist
+
+1. Send a booking test email from `/booking`.
+2. In Gmail "Show original", confirm:
+- `dkim=pass` for `waterapps.com.au`
+- `spf=pass`
+- `dmarc=pass`
+3. Confirm warning banner is no longer shown after provider caches refresh.
 
 ## CI/CD Setup (Optional)
 
