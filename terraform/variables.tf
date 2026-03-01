@@ -202,6 +202,12 @@ variable "booking_workdays_utc" {
   }
 }
 
+variable "reviews_point_in_time_recovery_enabled" {
+  description = "Enable point-in-time recovery (PITR) for the independent reviews table"
+  type        = bool
+  default     = false
+}
+
 variable "preserve_legacy_reviews_stack" {
   description = "Keep legacy reviews API/auth/IAM resources managed to avoid accidental destroy during booking rollout"
   type        = bool

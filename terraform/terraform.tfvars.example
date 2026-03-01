@@ -35,6 +35,8 @@ booking_start_hour_utc        = 0
 booking_end_hour_utc          = 8
 booking_workdays_utc          = [1, 2, 3, 4, 5]
 
+reviews_point_in_time_recovery_enabled = false
+
 # Legacy reviews compatibility (keep true until explicit retirement/migration)
 preserve_legacy_reviews_stack = true
 legacy_reviews_table_name     = "waterapps-prod-independent-reviews"

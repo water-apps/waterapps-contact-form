@@ -86,6 +86,15 @@ resource "aws_dynamodb_table" "independent_reviews" {
   server_side_encryption {
     enabled = true
   }
+
+  point_in_time_recovery {
+    enabled = var.reviews_point_in_time_recovery_enabled
+  }
+
+  tags = merge(var.common_tags, {
+    Name      = var.legacy_reviews_table_name
+    Component = "IndependentReviews"
+  })
 }
 
 # ─────────────────────────────────────────────
