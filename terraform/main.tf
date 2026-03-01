@@ -45,6 +45,40 @@ provider "aws" {
 data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
 
+resource "aws_dynamodb_table" "independent_reviews" {
+  count = var.preserve_legacy_reviews_stack ? 1 : 0
+
+  name         = var.legacy_reviews_table_name
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "review_id"
+
+  attribute {
+    name = "review_id"
+    type = "S"
+  }
+
+  attribute {
+    name = "status"
+    type = "S"
+  }
+
+  attribute {
+    name = "created_at"
+    type = "S"
+  }
+
+  global_secondary_index {
+    name            = "status-created-at-index"
+    hash_key        = "status"
+    range_key       = "created_at"
+    projection_type = "ALL"
+  }
+
+  server_side_encryption {
+    enabled = true
+  }
+}
+
 # ─────────────────────────────────────────────
 # IAM — Least privilege for Lambda
 # ─────────────────────────────────────────────
@@ -106,6 +140,37 @@ resource "aws_iam_role_policy" "lambda_logging" {
   })
 }
 
+# Keep legacy reviews-table permissions managed until the explicit retirement plan
+# is executed. This avoids accidental policy deletion from state drift.
+resource "aws_iam_role_policy" "lambda_dynamodb_reviews" {
+  count = var.preserve_legacy_reviews_stack ? 1 : 0
+
+  name = "${var.project}-${var.environment}-reviews-dynamodb"
+  role = aws_iam_role.lambda.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "dynamodb:PutItem",
+          "dynamodb:GetItem",
+          "dynamodb:UpdateItem",
+        ]
+        Resource = var.legacy_reviews_table_arn
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "dynamodb:Query",
+        ]
+        Resource = "${var.legacy_reviews_table_arn}/index/status-created-at-index"
+      }
+    ]
+  })
+}
+
 # ─────────────────────────────────────────────
 # LAMBDA
 # ─────────────────────────────────────────────
@@ -131,20 +196,26 @@ resource "aws_lambda_function" "contact" {
   role = aws_iam_role.lambda.arn
 
   environment {
-    variables = {
-      SOURCE_EMAIL                  = var.source_email
-      TARGET_EMAIL                  = var.target_email
-      ALLOWED_ORIGINS               = join(",", var.allowed_origins)
-      MAX_BODY_BYTES                = tostring(var.max_body_bytes)
-      LOG_LEVEL                     = var.log_level
-      BOOKING_TYPE                  = var.booking_type
-      BOOKING_SLOT_DURATION_MINUTES = tostring(var.booking_slot_duration_minutes)
-      BOOKING_LOOKAHEAD_DAYS        = tostring(var.booking_lookahead_days)
-      BOOKING_MIN_LEAD_MINUTES      = tostring(var.booking_min_lead_minutes)
-      BOOKING_START_HOUR_UTC        = tostring(var.booking_start_hour_utc)
-      BOOKING_END_HOUR_UTC          = tostring(var.booking_end_hour_utc)
-      BOOKING_WORKDAYS_UTC          = join(",", [for d in var.booking_workdays_utc : tostring(d)])
-    }
+    variables = merge(
+      {
+        SOURCE_EMAIL                  = var.source_email
+        TARGET_EMAIL                  = var.target_email
+        ALLOWED_ORIGINS               = join(",", var.allowed_origins)
+        MAX_BODY_BYTES                = tostring(var.max_body_bytes)
+        LOG_LEVEL                     = var.log_level
+        BOOKING_TYPE                  = var.booking_type
+        BOOKING_SLOT_DURATION_MINUTES = tostring(var.booking_slot_duration_minutes)
+        BOOKING_LOOKAHEAD_DAYS        = tostring(var.booking_lookahead_days)
+        BOOKING_MIN_LEAD_MINUTES      = tostring(var.booking_min_lead_minutes)
+        BOOKING_START_HOUR_UTC        = tostring(var.booking_start_hour_utc)
+        BOOKING_END_HOUR_UTC          = tostring(var.booking_end_hour_utc)
+        BOOKING_WORKDAYS_UTC          = join(",", [for d in var.booking_workdays_utc : tostring(d)])
+      },
+      var.preserve_legacy_reviews_stack ? {
+        REVIEWS_TABLE_NAME    = var.legacy_reviews_table_name
+        REVIEW_RETENTION_DAYS = tostring(var.legacy_review_retention_days)
+      } : {}
+    )
   }
 }
 
@@ -225,6 +296,49 @@ resource "aws_apigatewayv2_route" "get_availability" {
   api_id    = aws_apigatewayv2_api.contact.id
   route_key = "GET /availability"
   target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+}
+
+resource "aws_apigatewayv2_authorizer" "review_admin_jwt" {
+  count = var.preserve_legacy_reviews_stack ? 1 : 0
+
+  api_id                           = aws_apigatewayv2_api.contact.id
+  name                             = "${var.project}-${var.environment}-review-admin-jwt"
+  authorizer_type                  = "JWT"
+  identity_sources                 = ["$request.header.Authorization"]
+  authorizer_result_ttl_in_seconds = 0
+
+  jwt_configuration {
+    issuer   = var.legacy_review_jwt_issuer
+    audience = [var.legacy_review_jwt_audience]
+  }
+}
+
+resource "aws_apigatewayv2_route" "post_reviews" {
+  count = var.preserve_legacy_reviews_stack ? 1 : 0
+
+  api_id    = aws_apigatewayv2_api.contact.id
+  route_key = "POST /reviews"
+  target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+}
+
+resource "aws_apigatewayv2_route" "get_reviews" {
+  count = var.preserve_legacy_reviews_stack ? 1 : 0
+
+  api_id             = aws_apigatewayv2_api.contact.id
+  route_key          = "GET /reviews"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.review_admin_jwt[0].id
+  target             = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+}
+
+resource "aws_apigatewayv2_route" "post_review_moderate" {
+  count = var.preserve_legacy_reviews_stack ? 1 : 0
+
+  api_id             = aws_apigatewayv2_api.contact.id
+  route_key          = "POST /reviews/{reviewId}/moderate"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.review_admin_jwt[0].id
+  target             = "integrations/${aws_apigatewayv2_integration.lambda.id}"
 }
 
 resource "aws_apigatewayv2_route" "get_health" {

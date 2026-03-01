@@ -163,6 +163,42 @@ variable "booking_workdays_utc" {
   }
 }
 
+variable "preserve_legacy_reviews_stack" {
+  description = "Keep legacy reviews API/auth/IAM resources managed to avoid accidental destroy during booking rollout"
+  type        = bool
+  default     = true
+}
+
+variable "legacy_reviews_table_name" {
+  description = "Legacy reviews DynamoDB table name preserved for compatibility"
+  type        = string
+  default     = "waterapps-prod-independent-reviews"
+}
+
+variable "legacy_reviews_table_arn" {
+  description = "Legacy reviews DynamoDB table ARN used in Lambda IAM policy"
+  type        = string
+  default     = "arn:aws:dynamodb:ap-southeast-2:815373603734:table/waterapps-prod-independent-reviews"
+}
+
+variable "legacy_review_retention_days" {
+  description = "Legacy review retention value kept in Lambda env for backward compatibility"
+  type        = number
+  default     = 365
+}
+
+variable "legacy_review_jwt_issuer" {
+  description = "Legacy Cognito issuer for review admin JWT authorizer"
+  type        = string
+  default     = "https://cognito-idp.ap-southeast-2.amazonaws.com/ap-southeast-2_abk0SHGQp"
+}
+
+variable "legacy_review_jwt_audience" {
+  description = "Legacy Cognito audience(client id) for review admin JWT authorizer"
+  type        = string
+  default     = "82lu2ao83rcqvjbcbnmcfbe3e"
+}
+
 variable "common_tags" {
   description = "Tags applied to all resources"
   type        = map(string)
