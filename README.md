@@ -134,6 +134,7 @@ Admin review moderation API routes:
 
 - `GET /reviews?status=pending&limit=25` (JWT-auth protected when `enable_review_admin_jwt_auth=true`)
 - `POST /reviews/{reviewId}/moderate` with JSON body: `{"decision":"approved|rejected","note":"optional"}`
+- `reviews_point_in_time_recovery_enabled` controls DynamoDB PITR cost/restore posture (default: `false`)
 
 ## Project Structure
 

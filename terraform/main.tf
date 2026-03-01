@@ -178,8 +178,13 @@ resource "aws_dynamodb_table" "independent_reviews" {
   }
 
   point_in_time_recovery {
-    enabled = true
+    enabled = var.reviews_point_in_time_recovery_enabled
   }
+
+  tags = merge(var.common_tags, {
+    Name      = local.reviews_table_name
+    Component = "IndependentReviews"
+  })
 }
 
 # ─────────────────────────────────────────────

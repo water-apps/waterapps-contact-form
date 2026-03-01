@@ -23,6 +23,7 @@ log_level          = "info"
 # Independent reviews persistence
 # reviews_table_name = "waterapps-prod-independent-reviews" # optional override
 review_retention_days = 365
+reviews_point_in_time_recovery_enabled = false
 
 # Admin API authorization (recommended: keep enabled)
 # Use values from waterapps-20-infra-enterprise/02-security outputs:

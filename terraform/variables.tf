@@ -105,6 +105,12 @@ variable "review_retention_days" {
   }
 }
 
+variable "reviews_point_in_time_recovery_enabled" {
+  description = "Enable point-in-time recovery (PITR) for the independent reviews table"
+  type        = bool
+  default     = false
+}
+
 variable "enable_review_admin_jwt_auth" {
   description = "Require JWT auth on admin review routes (GET /reviews and POST /reviews/{reviewId}/moderate)"
   type        = bool
