@@ -154,6 +154,12 @@ Current limitation:
 - No calendar OAuth sync (Google/Microsoft) yet
 - Request-based booking flow (slot confirmation is finalized by email)
 
+## Reviews Admin Operations
+
+- `GET /reviews?status=pending&limit=25` to fetch moderation queues
+- `POST /reviews/{reviewId}/moderate` with JSON body: `{"decision":"approved|rejected","note":"optional"}`
+- `reviews_point_in_time_recovery_enabled` controls DynamoDB PITR cost/restore posture (default: `false`)
+
 ## Project Structure
 
 ```
